@@ -1,35 +1,7 @@
 import { Activity, Ambulance, Bell, Database, Radio, Shield, Wifi } from 'lucide-react'
 import './App.css'
-
-const patients = [
-  {
-    ambulance: 'AMB-07',
-    patientHash: 'a3f2c81d9e...8b1c',
-    triage: 'ROJO',
-    fc: 142,
-    pa: '60/40',
-    spo2: 94,
-    latency: 684,
-  },
-  {
-    ambulance: 'AMB-03',
-    patientHash: 'f71a002e4c...3d9f',
-    triage: 'AMARILLO',
-    fc: 98,
-    pa: '100/65',
-    spo2: 97,
-    latency: 821,
-  },
-  {
-    ambulance: 'AMB-12',
-    patientHash: 'c90b3e5f11...a2d4',
-    triage: 'VERDE',
-    fc: 72,
-    pa: '120/80',
-    spo2: 99,
-    latency: 433,
-  },
-]
+import { useMockRealtime } from './hooks/useMockRealtime'
+import { useAlertSound } from './hooks/useAlertSound'
 
 function getTriageClass(triage) {
   if (triage === 'ROJO') return 'triage-red'
@@ -38,7 +10,11 @@ function getTriageClass(triage) {
 }
 
 export default function App() {
+  const { patients, eventsReceived } = useMockRealtime()
+
   const redPatients = patients.filter((p) => p.triage === 'ROJO')
+  const { soundEnabled, enableSound } = useAlertSound(redPatients)
+
   const avgLatency = Math.round(
     patients.reduce((sum, p) => sum + p.latency, 0) / patients.length
   )
@@ -56,9 +32,15 @@ export default function App() {
           </div>
         </div>
 
-        <div className="status-live">
-          <Wifi size={16} />
-          WebSocket LIVE
+        <div className="header-actions">
+          <div className="status-live">
+            <Wifi size={16} />
+            WebSocket LIVE
+          </div>
+
+          <button className="sound-button" onClick={enableSound}>
+            {soundEnabled ? 'Sonido activo' : 'Activar sonido'}
+          </button>
         </div>
       </header>
 
@@ -178,7 +160,7 @@ export default function App() {
 
             <div className="obs-row">
               <span>Eventos recibidos</span>
-              <strong>3</strong>
+              <strong>{eventsReceived}</strong>
             </div>
 
             <div className="obs-row">
