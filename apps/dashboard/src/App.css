@@ -1,0 +1,289 @@
+.dashboard {
+  min-height: 100vh;
+  background: #020617;
+  color: #e5e7eb;
+  padding: 24px;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  border-radius: 18px;
+  padding: 18px 22px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.brand-icon {
+  width: 48px;
+  height: 48px;
+  background: #dc2626;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  color: white;
+}
+
+.brand h1 {
+  margin: 0;
+  font-size: 26px;
+}
+
+.brand p {
+  margin: 4px 0 0;
+  color: #94a3b8;
+}
+
+.status-live {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(34, 197, 94, 0.12);
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.4);
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+  margin-top: 22px;
+}
+
+.metric-card {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  border-radius: 18px;
+  padding: 20px;
+}
+
+.metric-card svg {
+  color: #38bdf8;
+}
+
+.metric-card.red svg,
+.metric-card.red strong {
+  color: #ef4444;
+}
+
+.metric-card span {
+  color: #94a3b8;
+  font-size: 14px;
+}
+
+.metric-card strong {
+  display: block;
+  font-size: 28px;
+  margin-top: 4px;
+}
+
+.critical-alert {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  background: rgba(239, 68, 68, 0.14);
+  border: 1px solid rgba(239, 68, 68, 0.55);
+  border-radius: 18px;
+  margin-top: 22px;
+  padding: 18px 22px;
+}
+
+.critical-alert svg {
+  color: #ef4444;
+}
+
+.critical-alert h2 {
+  margin: 0;
+  color: #fecaca;
+  font-size: 20px;
+}
+
+.critical-alert p {
+  margin: 4px 0 0;
+  color: #fca5a5;
+}
+
+.content-grid {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 22px;
+  margin-top: 22px;
+}
+
+.section-title {
+  color: #94a3b8;
+  text-transform: uppercase;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  margin: 0 0 14px;
+}
+
+.patient-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.patient-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1.2fr 1.5fr auto;
+  align-items: center;
+  gap: 18px;
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  border-radius: 18px;
+  padding: 18px;
+}
+
+.patient-card.triage-red {
+  border-color: rgba(239, 68, 68, 0.65);
+  box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.15);
+}
+
+.patient-main {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.patient-main h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.patient-main p {
+  margin: 4px 0 0;
+  color: #94a3b8;
+  font-family: monospace;
+}
+
+.triage-badge {
+  font-weight: 800;
+  font-size: 12px;
+  padding: 7px 10px;
+  border-radius: 999px;
+}
+
+.triage-red {
+  background: rgba(239, 68, 68, 0.14);
+  color: #fca5a5;
+}
+
+.triage-yellow {
+  background: rgba(234, 179, 8, 0.14);
+  color: #fde68a;
+}
+
+.triage-green {
+  background: rgba(34, 197, 94, 0.14);
+  color: #86efac;
+}
+
+.vitals {
+  display: flex;
+  gap: 18px;
+  color: #cbd5e1;
+}
+
+.vitals strong {
+  color: #ffffff;
+}
+
+.latency-pill {
+  color: #22c55e;
+  background: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(34, 197, 94, 0.35);
+  border-radius: 999px;
+  padding: 7px 11px;
+  font-weight: 800;
+}
+
+.side-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.panel-card {
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  border-radius: 18px;
+  padding: 20px;
+}
+
+.panel-card p {
+  color: #cbd5e1;
+  line-height: 1.5;
+}
+
+.circuit-state {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 900;
+  margin-bottom: 12px;
+}
+
+.circuit-state span {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: #22c55e;
+  box-shadow: 0 0 18px rgba(34, 197, 94, 0.8);
+}
+
+.obs-row {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px solid #1e293b;
+  padding: 10px 0;
+  color: #cbd5e1;
+}
+
+.obs-row:last-child {
+  border-bottom: 0;
+}
+
+.obs-row strong {
+  color: #22c55e;
+}
+
+.security {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.security svg {
+  color: #38bdf8;
+  flex-shrink: 0;
+}
+
+@media (max-width: 950px) {
+  .metrics-grid,
+  .content-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .patient-card {
+    grid-template-columns: 1fr;
+  }
+
+  .vitals {
+    flex-wrap: wrap;
+  }
+}
