@@ -303,3 +303,30 @@
   font-weight: 800;
   cursor: pointer;
 }
+
+.circuit-state.open {
+  color: #fca5a5;
+}
+
+.circuit-state.open span {
+  background: #ef4444;
+  box-shadow: 0 0 18px rgba(239, 68, 68, 0.8);
+}
+
+.circuit-state.half-open {
+  color: #fde68a;
+}
+
+.circuit-state.half-open span {
+  background: #eab308;
+  box-shadow: 0 0 18px rgba(234, 179, 8, 0.8);
+}
+
+.circuit-state.closed {
+  color: #86efac;
+}
+
+.circuit-state.closed span {
+  background: #22c55e;
+  box-shadow: 0 0 18px rgba(34, 197, 94, 0.8);
+}

@@ -1,6 +1,11 @@
 import { Ambulance, Bell, Database, Radio } from 'lucide-react'
 
-export function MetricsGrid({ patients, redPatients, avgLatency }) {
+export function MetricsGrid({
+  patients,
+  redPatients,
+  avgLatency,
+  queueSize,
+}) {
   return (
     <section className="metrics-grid">
       <article className="metric-card">
@@ -31,7 +36,7 @@ export function MetricsGrid({ patients, redPatients, avgLatency }) {
         <Database size={24} />
         <div>
           <span>Cola HIS</span>
-          <strong>2</strong>
+          <strong>{queueSize}</strong>
         </div>
       </article>
     </section>
