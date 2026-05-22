@@ -1,5 +1,6 @@
 require('dotenv').config();
 const { createClient } = require('@supabase/supabase-js');
+const crypto = require('crypto');
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -14,8 +15,6 @@ const AMBULANCIAS = [
   { id: 'AMB-005', lat: 6.2310, lng: -75.5780 },
 ];
 
-const TRIAGE = ['Verde', 'Amarillo', 'Rojo'];
-
 // EKG fake en Base64 (~1KB)
 const fakeEKG = Buffer.from('FAKE_EKG_DATA_' + 'x'.repeat(100)).toString('base64');
 
@@ -25,35 +24,40 @@ function randomInt(min, max) {
 
 function randomTriage() {
   const rand = Math.random();
-  if (rand < 0.15) return 'Rojo';      // 15% crítico
-  if (rand < 0.45) return 'Amarillo';  // 30% urgente
-  return 'Verde';                        // 55% estable
+  if (rand < 0.15) return 'Rojo';
+  if (rand < 0.45) return 'Amarillo';
+  return 'Verde';
+}
+
+// Anonimiza el ID del paciente con HMAC-SHA256
+function hashPatientId(rawId) {
+  const salt = process.env.PATIENT_HASH_SALT || 'default_salt';
+  return crypto.createHmac('sha256', salt).update(rawId).digest('hex');
 }
 
 async function enviarDatos(ambulancia) {
   const triage = randomTriage();
+  const rawPatientId = `PAC-${ambulancia.id}-${Date.now()}`;
+
+  // Columnas exactas de la tabla 'vitales' en Supabase
   const payload = {
-    ambulance_id: ambulancia.id,
-    patient_id: `PAC-${ambulancia.id}-${Date.now()}`,
-    heart_rate: randomInt(55, 140),
-    systolic_bp: randomInt(80, 180),
-    diastolic_bp: randomInt(50, 110),
-    triage_level: triage,
-    latitude: ambulancia.lat + (Math.random() - 0.5) * 0.01,
-    longitude: ambulancia.lng + (Math.random() - 0.5) * 0.01,
-    ekg_base64: fakeEKG,
-    recorded_at: new Date().toISOString(),
+    patient_hash: hashPatientId(rawPatientId),
+    hospital_id: 'HSP-SAN-VICENTE',
+    frecuencia_cardiaca: randomInt(55, 140),
+    presion_arterial: `${randomInt(80, 180)}/${randomInt(50, 110)}`,
+    triage: triage,
+    ekg_url: `data:image/png;base64,${fakeEKG}`,
   };
 
   const { error } = await supabase
-    .from('vitals')
+    .from('vitales')
     .insert(payload);
 
   if (error) {
     console.error(`❌ [${ambulancia.id}] Error:`, error.message);
   } else {
     const emoji = triage === 'Rojo' ? '🔴' : triage === 'Amarillo' ? '🟡' : '🟢';
-    console.log(`${emoji} [${ambulancia.id}] FC:${payload.heart_rate} PA:${payload.systolic_bp}/${payload.diastolic_bp} → ${triage}`);
+    console.log(`${emoji} [${ambulancia.id}] FC:${payload.frecuencia_cardiaca} PA:${payload.presion_arterial} → ${triage}`);
   }
 }
 
@@ -65,5 +69,5 @@ async function ciclo() {
 console.log('🚑 VitalSync Mock Simulator iniciado');
 console.log(`📡 Conectado a: ${process.env.SUPABASE_URL}\n`);
 
-ciclo(); // Primera ejecución inmediata
-setInterval(ciclo, 10000); // Cada 10 segundos
+ciclo();
+setInterval(ciclo, 10000);
