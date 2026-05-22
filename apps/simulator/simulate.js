@@ -15,7 +15,9 @@ const AMBULANCIAS = [
   { id: 'AMB-005', lat: 6.2310, lng: -75.5780 },
 ];
 
-// EKG fake en Base64 (~1KB)
+const HOSPITAL_ID = 'HSP-SAN-VICENTE';
+
+// EKG fake en Base64
 const fakeEKG = Buffer.from('FAKE_EKG_DATA_' + 'x'.repeat(100)).toString('base64');
 
 function randomInt(min, max) {
@@ -29,32 +31,42 @@ function randomTriage() {
   return 'Verde';
 }
 
-// Anonimiza el ID del paciente con HMAC-SHA256
-function hashPatientId(rawId) {
+// Hash fijo por ambulancia (simula paciente estable en la ambulancia)
+function hashAmbulancia(ambId) {
   const salt = process.env.PATIENT_HASH_SALT || 'default_salt';
-  return crypto.createHmac('sha256', salt).update(rawId).digest('hex');
+  return crypto.createHmac('sha256', salt).update(ambId).digest('hex');
 }
 
 async function enviarDatos(ambulancia) {
   const triage = randomTriage();
-  const rawPatientId = `PAC-${ambulancia.id}-${Date.now()}`;
+  const patient_hash = hashAmbulancia(ambulancia.id);
 
-  // Columnas exactas de la tabla 'vitales' en Supabase
+  // 1. Upsert en pacientes_dim (crea si no existe, ignora si ya existe)
+  const { error: errPaciente } = await supabase
+    .from('pacientes_dim')
+    .upsert({ patient_hash, hospital_id: HOSPITAL_ID }, { onConflict: 'patient_hash' });
+
+  if (errPaciente) {
+    console.error(`❌ [${ambulancia.id}] Error pacientes_dim:`, errPaciente.message);
+    return;
+  }
+
+  // 2. Insertar signos vitales
   const payload = {
-    patient_hash: hashPatientId(rawPatientId),
-    hospital_id: 'HSP-SAN-VICENTE',
+    patient_hash,
+    hospital_id: HOSPITAL_ID,
     frecuencia_cardiaca: randomInt(55, 140),
     presion_arterial: `${randomInt(80, 180)}/${randomInt(50, 110)}`,
-    triage: triage,
+    triage,
     ekg_url: `data:image/png;base64,${fakeEKG}`,
   };
 
-  const { error } = await supabase
+  const { error: errVital } = await supabase
     .from('vitales')
     .insert(payload);
 
-  if (error) {
-    console.error(`❌ [${ambulancia.id}] Error:`, error.message);
+  if (errVital) {
+    console.error(`❌ [${ambulancia.id}] Error vitales:`, errVital.message);
   } else {
     const emoji = triage === 'Rojo' ? '🔴' : triage === 'Amarillo' ? '🟡' : '🟢';
     console.log(`${emoji} [${ambulancia.id}] FC:${payload.frecuencia_cardiaca} PA:${payload.presion_arterial} → ${triage}`);
