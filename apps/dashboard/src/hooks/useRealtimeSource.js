@@ -1,39 +1,22 @@
 import { useMockRealtime } from './useMockRealtime'
 import { useSupabaseRealtime } from './useSupabaseRealtime'
 
-const source =
-  import.meta.env.VITE_DATA_SOURCE || 'mock'
+const dataSource = import.meta.env.VITE_DATA_SOURCE || 'mock'
 
 export function useRealtimeSource() {
   const mockData = useMockRealtime()
+  const supabaseData = useSupabaseRealtime()
 
-  let supabaseData = {
-    patients: [],
-    eventsReceived: 0,
-    connectionStatus: 'DISABLED',
-  }
-
-  try {
-    supabaseData =
-      useSupabaseRealtime()
-  } catch (error) {
-    console.error(
-      'Supabase fallback:',
-      error
-    )
-  }
-
-  if (
-    source === 'supabase' &&
-    supabaseData.connectionStatus !==
-      'ERROR'
-  ) {
+  // Si la variable dice 'supabase', usar Supabase siempre
+  // (aunque el estado sea CONNECTING, no caer al mock)
+  if (dataSource === 'supabase') {
     return {
       ...supabaseData,
       source: 'SUPABASE',
     }
   }
 
+  // Fallback: datos mock para desarrollo local
   return {
     ...mockData,
     connectionStatus: 'MOCK',
