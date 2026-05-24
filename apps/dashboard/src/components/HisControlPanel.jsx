@@ -1,22 +1,17 @@
 /**
  * HisControlPanel — Panel de control del HIS para la demo
- * Permite al presentador:
- *  - Ver el estado actual del HIS (UP / DOWN)
- *  - Simular caída del HIS (→ Circuit Breaker se abre)
- *  - Restaurar el HIS (→ Circuit Breaker pasa a HALF_OPEN → CLOSED)
+ * Usa ruta relativa /api/his-mock para evitar CORS con Vercel Authentication
  */
 import { useState, useEffect } from 'react'
 
-// Usa VITE_HIS_STATUS_URL base, reemplazando his-status por his-mock
-const HIS_STATUS_BASE = import.meta.env.VITE_HIS_STATUS_URL ?? '/api/his-status'
-const HIS_BASE = HIS_STATUS_BASE.replace('/api/his-status', '/api/his-mock')
+// Ruta relativa — siempre va al mismo origen, sin problemas de CORS
+const HIS_BASE = '/api/his-mock'
 
 export default function HisControlPanel() {
   const [hisStatus, setHisStatus] = useState('CHECKING')
   const [loading, setLoading] = useState(false)
   const [lastAction, setLastAction] = useState(null)
 
-  // Polling del estado del HIS cada 5 segundos
   useEffect(() => {
     const check = async () => {
       try {
