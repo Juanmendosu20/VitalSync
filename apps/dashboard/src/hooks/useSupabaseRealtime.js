@@ -7,7 +7,8 @@ function mapVital(record) {
     id: record.id,
     ambulance: record.ambulancia_id ?? record.patient_hash?.slice(0, 8) ?? 'AMB-??',
     patientHash: record.patient_hash,
-    triage: record.triage ?? 'Verde',
+    // Normalizar a mayúsculas para compatibilidad con registros viejos y nuevos
+    triage: (record.triage ?? 'VERDE').toUpperCase(),
     fc: record.frecuencia_cardiaca ?? record.fc ?? 0,
     pa: record.presion_arterial ?? record.pa ?? '0/0',
     spo2: record.spo2 ?? 98,

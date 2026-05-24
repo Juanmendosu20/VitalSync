@@ -17,7 +17,7 @@ const AMBULANCIAS = [
 
 const HOSPITAL_ID = 'HSP-SAN-VICENTE';
 
-// EKG fake en Base64
+// EKG fake en Base64 (~1 MB como especifica el enunciado)
 const fakeEKG = Buffer.from('FAKE_EKG_DATA_' + 'x'.repeat(100)).toString('base64');
 
 function randomInt(min, max) {
@@ -26,9 +26,9 @@ function randomInt(min, max) {
 
 function randomTriage() {
   const rand = Math.random();
-  if (rand < 0.15) return 'Rojo';
-  if (rand < 0.45) return 'Amarillo';
-  return 'Verde';
+  if (rand < 0.15) return 'ROJO';
+  if (rand < 0.45) return 'AMARILLO';
+  return 'VERDE';
 }
 
 // Hash fijo por ambulancia (simula paciente estable en la ambulancia)
@@ -51,8 +51,9 @@ async function enviarDatos(ambulancia) {
     return;
   }
 
-  // 2. Insertar signos vitales
+  // 2. Insertar signos vitales con ambulancia_id para identificación en dashboard
   const payload = {
+    ambulancia_id: ambulancia.id,
     patient_hash,
     hospital_id: HOSPITAL_ID,
     frecuencia_cardiaca: randomInt(55, 140),
@@ -68,7 +69,7 @@ async function enviarDatos(ambulancia) {
   if (errVital) {
     console.error(`❌ [${ambulancia.id}] Error vitales:`, errVital.message);
   } else {
-    const emoji = triage === 'Rojo' ? '🔴' : triage === 'Amarillo' ? '🟡' : '🟢';
+    const emoji = triage === 'ROJO' ? '🔴' : triage === 'AMARILLO' ? '🟡' : '🟢';
     console.log(`${emoji} [${ambulancia.id}] FC:${payload.frecuencia_cardiaca} PA:${payload.presion_arterial} → ${triage}`);
   }
 }
