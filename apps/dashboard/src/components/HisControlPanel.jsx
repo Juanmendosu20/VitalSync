@@ -7,7 +7,9 @@
  */
 import { useState, useEffect } from 'react'
 
-const HIS_BASE = import.meta.env.VITE_HIS_MOCK_URL ?? '/api/his-mock'
+// Usa VITE_HIS_STATUS_URL base, reemplazando his-status por his-mock
+const HIS_STATUS_BASE = import.meta.env.VITE_HIS_STATUS_URL ?? '/api/his-status'
+const HIS_BASE = HIS_STATUS_BASE.replace('/api/his-status', '/api/his-mock')
 
 export default function HisControlPanel() {
   const [hisStatus, setHisStatus] = useState('CHECKING')
