@@ -10,6 +10,7 @@ import { PatientList } from './components/PatientList'
 import { CircuitBreakerPanel } from './components/CircuitBreakerPanel'
 import { ObservabilityPanel } from './components/ObservabilityPanel'
 import { SecurityPanel } from './components/SecurityPanel'
+import HisControlPanel from './components/HisControlPanel'
 
 export default function App() {
   const {
@@ -54,6 +55,9 @@ export default function App() {
             circuitState={circuitState}
             circuitSource={circuitSource}
           />
+
+          {/* Panel de control demo — simular caída/recuperación del HIS */}
+          <HisControlPanel />
 
           <ObservabilityPanel
             avgLatency={avgLatency}
