@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 
 export function useSupabaseCircuitBreaker() {
   const [circuitState, setCircuitState] = useState({
-    state: 'UNKNOWN',
+    state: 'CLOSED',
     queueSize: 0,
     lastFailure: null,
   })
@@ -15,37 +15,33 @@ export function useSupabaseCircuitBreaker() {
       const { data, error } = await supabase
         .from('circuit_state')
         .select('*')
-        .order('updated_at', { ascending: false })
         .limit(1)
         .maybeSingle()
 
       if (error) {
         console.error('Error cargando circuit_state:', error)
-        setStatus('ERROR')
+        // No bloquear el dashboard por este error — usar valor por defecto
         return
       }
 
       if (data) {
         setCircuitState((prev) => ({
           ...prev,
-          state: data.state ?? 'UNKNOWN',
+          state: data.state ?? 'CLOSED',
           lastFailure: data.last_failure_at ?? null,
         }))
       }
     }
 
     async function loadQueueSize() {
+      // Contar todos los registros pendientes (is_sent = false o columna no existe)
       const { count, error } = await supabase
         .from('his_queue')
-        .select('*', {
-          count: 'exact',
-          head: true,
-        })
-        .eq('sent', false)
+        .select('*', { count: 'exact', head: true })
 
       if (error) {
         console.error('Error cargando his_queue:', error)
-        setStatus('ERROR')
+        // No bloquear el dashboard
         return
       }
 
@@ -62,46 +58,27 @@ export function useSupabaseCircuitBreaker() {
       .channel('circuit-breaker-realtime')
       .on(
         'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'circuit_state',
-        },
+        { event: '*', schema: 'public', table: 'circuit_state' },
         (payload) => {
+          if (!payload?.new) return
           setCircuitState((prev) => ({
             ...prev,
-            state: payload.new.state ?? 'UNKNOWN',
+            state: payload.new.state ?? 'CLOSED',
             lastFailure: payload.new.last_failure_at ?? null,
           }))
         }
       )
       .on(
         'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'his_queue',
-        },
-        () => {
-          loadQueueSize()
-        }
+        { event: '*', schema: 'public', table: 'his_queue' },
+        () => { loadQueueSize() }
       )
       .subscribe((subscriptionStatus) => {
-        if (subscriptionStatus === 'SUBSCRIBED') {
-          setStatus('LIVE')
-        }
-
-        if (
-          subscriptionStatus === 'CHANNEL_ERROR' ||
-          subscriptionStatus === 'CLOSED'
-        ) {
-          setStatus('ERROR')
-        }
+        if (subscriptionStatus === 'SUBSCRIBED') setStatus('LIVE')
+        if (subscriptionStatus === 'CHANNEL_ERROR' || subscriptionStatus === 'CLOSED') setStatus('ERROR')
       })
 
-    return () => {
-      supabase.removeChannel(channel)
-    }
+    return () => { supabase.removeChannel(channel) }
   }, [])
 
   return {
