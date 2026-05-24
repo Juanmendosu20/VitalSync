@@ -1,18 +1,15 @@
+/**
+ * useCircuitBreakerSource
+ *
+ * SIEMPRE usa useMockCircuitBreaker que lee /api/his-mock en tiempo real.
+ * El estado de Supabase (circuit_state) es una tabla auxiliar que no se
+ * actualiza desde el botón del panel, por lo que no reflejaría la demo.
+ *
+ * Si en el futuro se quiere que Supabase también persista el estado,
+ * hay que actualizar la tabla desde el botón ⚡/✅ del HisControlPanel.
+ */
 import { useMockCircuitBreaker } from './useMockCircuitBreaker'
-import { useSupabaseCircuitBreaker } from './useSupabaseCircuitBreaker'
-
-const source = import.meta.env.VITE_DATA_SOURCE || 'mock'
 
 export function useCircuitBreakerSource() {
-  const mockCircuit = useMockCircuitBreaker()
-  const supabaseCircuit = useSupabaseCircuitBreaker()
-
-  if (
-    source === 'supabase' &&
-    supabaseCircuit.circuitSource === 'SUPABASE'
-  ) {
-    return supabaseCircuit
-  }
-
-  return mockCircuit
+  return useMockCircuitBreaker()
 }
