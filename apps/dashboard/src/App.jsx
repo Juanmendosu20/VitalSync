@@ -18,6 +18,7 @@ export default function App() {
     eventsReceived,
     connectionStatus,
     source,
+    avgLatency,
   } = useRealtimeSource()
   const { circuitState, circuitSource } = useCircuitBreakerSource()
 
@@ -25,11 +26,6 @@ export default function App() {
 
   const { soundEnabled, enableSound } =
     useAlertSound(redPatients)
-
-  const avgLatency = Math.round(
-    patients.reduce((sum, p) => sum + p.latency, 0) /
-      patients.length
-  )
 
   return (
     <main className="dashboard">
@@ -41,7 +37,7 @@ export default function App() {
       <MetricsGrid
         patients={patients}
         redPatients={redPatients}
-        avgLatency={avgLatency}
+        avgLatency={avgLatency ?? 0}
         queueSize={circuitState?.queueSize ?? 0}
       />
 
@@ -56,11 +52,10 @@ export default function App() {
             circuitSource={circuitSource}
           />
 
-          {/* Panel de control demo — simular caída/recuperación del HIS */}
           <HisControlPanel />
 
           <ObservabilityPanel
-            avgLatency={avgLatency}
+            avgLatency={avgLatency ?? 0}
             eventsReceived={eventsReceived}
             connectionStatus={connectionStatus}
             source={source}
