@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 
-function mapVital(record) {
+function mapVital(record, receivedAt = Date.now()) {
   return {
     id: record.id,
     ambulance: record.ambulancia_id ?? record.patient_hash?.slice(0, 8) ?? 'AMB-??',
@@ -10,7 +10,9 @@ function mapVital(record) {
     fc: record.frecuencia_cardiaca ?? record.fc ?? 0,
     pa: record.presion_arterial ?? record.pa ?? '0/0',
     spo2: record.spo2 ?? 98,
-    serverTs: record.created_at ? new Date(record.created_at).getTime() : Date.now(),
+    // Latencia puntual: cuánto tardó en llegar el evento al browser
+    latency: receivedAt - new Date(record.created_at ?? receivedAt).getTime(),
+    receivedAt,
   }
 }
 
@@ -30,22 +32,23 @@ export function useSupabaseRealtime() {
     patientsRef.current = patients
   }, [patients])
 
-  // Recalcula latencia cada segundo — clamp entre 0 y 30 000 ms
+  // Promedio de latencias puntuales (no aumenta con el tiempo)
   useEffect(() => {
     const interval = setInterval(() => {
       const list = patientsRef.current
       if (!list.length) return setAvgLatency(0)
-      const now = Date.now()
-      const values = list.map((p) => Math.min(Math.max(now - p.serverTs, 0), 30_000))
-      const avg = values.reduce((s, v) => s + v, 0) / values.length
-      setAvgLatency(Math.round(avg))
+      const valid = list
+        .map((p) => p.latency)
+        .filter((l) => l >= 0 && l < 30_000)
+      if (!valid.length) return setAvgLatency(0)
+      setAvgLatency(Math.round(valid.reduce((s, v) => s + v, 0) / valid.length))
     }, 1000)
     return () => clearInterval(interval)
   }, [])
 
   useEffect(() => {
     async function loadInitialData() {
-      const since = new Date(Date.now() - 60_000).toISOString()
+      const since = new Date(Date.now() - 30_000).toISOString()
       const { data, error } = await supabase
         .from('vitales')
         .select('*')
@@ -59,14 +62,14 @@ export function useSupabaseRealtime() {
         return
       }
 
+      const now = Date.now()
       const seen = new Set()
       const unique = (data ?? []).filter((r) => {
         if (seen.has(r.patient_hash)) return false
         seen.add(r.patient_hash)
         return true
       })
-
-      setPatients(unique.map(mapVital))
+      setPatients(unique.map((r) => mapVital(r, now)))
     }
 
     loadInitialData()
@@ -77,7 +80,8 @@ export function useSupabaseRealtime() {
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'vitales' },
         (payload) => {
-          const newPatient = mapVital(payload.new)
+          const arrivedAt = Date.now()
+          const newPatient = mapVital(payload.new, arrivedAt)
           setPatients((prev) => mergeByAmbulance(prev, newPatient))
           setEventsReceived((prev) => prev + 1)
         }
