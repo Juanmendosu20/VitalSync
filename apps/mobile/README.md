@@ -29,6 +29,27 @@ npm run android
 
 > Nota: WatermelonDB usa un modulo nativo de SQLite. Para una prueba en tablet o APK se debe usar un development build o APK nativa, no Expo Go puro.
 
+## Development build Android
+
+Para probar ejecucion real antes de generar APK final:
+
+1. Instalar Android Studio / Android SDK.
+2. Activar depuracion USB en un celular Android o abrir un emulador.
+3. Crear el build nativo de desarrollo:
+
+```bash
+cd apps/mobile
+npx expo run:android
+```
+
+4. Iniciar Metro para development client:
+
+```bash
+npx expo start --dev-client
+```
+
+La app tiene `expo-dev-client` instalado y `newArchEnabled=false` para reducir riesgo con WatermelonDB.
+
 ## Configuracion
 
 Copia `.env.example` a `.env`:
