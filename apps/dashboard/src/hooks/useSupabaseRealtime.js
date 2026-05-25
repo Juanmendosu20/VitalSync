@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 
-function mapVital(record, arrivalTime) {
+function mapVital(record, latency = null) {
   return {
     id: record.id,
     ambulance: record.ambulancia_id ?? record.patient_hash?.slice(0, 8) ?? 'AMB-??',
@@ -10,8 +10,7 @@ function mapVital(record, arrivalTime) {
     fc: record.frecuencia_cardiaca ?? record.fc ?? 0,
     pa: record.presion_arterial ?? record.pa ?? '0/0',
     spo2: record.spo2 ?? 98,
-    // Latencia fija: momento en que llego al browser - cuando fue insertado en Supabase
-    latency: Math.max(0, arrivalTime - new Date(record.created_at).getTime()),
+    latency, // ms del ultimo INSERT de esta ambulancia (null = cargado al inicio)
   }
 }
 
@@ -28,9 +27,9 @@ export function useSupabaseRealtime() {
   const latencyWindowRef = useRef([])
   const channelRef = useRef(null)
 
-  // Ping cada 3s para latencia promedio global
+  // Ping cada 3s — mide RTT real y lo guarda para usarlo en tarjetas nuevas
   useEffect(() => {
-    const pingInterval = setInterval(async () => {
+    const doPing = async () => {
       const t0 = Date.now()
       try {
         await supabase.from('vitales').select('id').limit(1)
@@ -39,8 +38,10 @@ export function useSupabaseRealtime() {
         const win = latencyWindowRef.current
         setAvgLatency(Math.round(win.reduce((s, v) => s + v, 0) / win.length))
       } catch (_) {}
-    }, 3000)
-    return () => clearInterval(pingInterval)
+    }
+    doPing()
+    const t = setInterval(doPing, 3000)
+    return () => clearInterval(t)
   }, [])
 
   useEffect(() => {
@@ -55,14 +56,14 @@ export function useSupabaseRealtime() {
 
       if (error) { setConnectionStatus('ERROR'); return }
 
-      const now = Date.now()
       const seen = new Set()
       const unique = (data ?? []).filter((r) => {
         if (seen.has(r.patient_hash)) return false
         seen.add(r.patient_hash)
         return true
       })
-      setPatients(unique.map((r) => mapVital(r, now)))
+      // Datos historicos: latency null → muestra '--'
+      setPatients(unique.map((r) => mapVital(r, null)))
     }
 
     loadInitialData()
@@ -71,15 +72,18 @@ export function useSupabaseRealtime() {
       .channel('vitales-realtime')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'vitales' },
         (payload) => {
-          // arrivalTime = exactamente cuando llego el evento al browser
-          const arrivalTime = Date.now()
-          const record = mapVital(payload.new, arrivalTime)
-          setPatients((prev) => mergeByAmbulance(prev, record))
+          // Medir RTT de este INSERT especifico
+          const t0 = Date.now()
+          supabase.from('vitales').select('id').eq('id', payload.new.id).single().then(() => {
+            const rtt = Date.now() - t0
+            latencyWindowRef.current = [...latencyWindowRef.current, rtt].slice(-20)
+            const win = latencyWindowRef.current
+            const avg = Math.round(win.reduce((s, v) => s + v, 0) / win.length)
+            setAvgLatency(avg)
+            const record = mapVital(payload.new, rtt)
+            setPatients((prev) => mergeByAmbulance(prev, record))
+          })
           setEventsReceived((prev) => prev + 1)
-          // Acumular en ventana para promedio
-          latencyWindowRef.current = [...latencyWindowRef.current, record.latency].slice(-20)
-          const win = latencyWindowRef.current
-          setAvgLatency(Math.round(win.reduce((s, v) => s + v, 0) / win.length))
         }
       )
       .subscribe((status) => {
