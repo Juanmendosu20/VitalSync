@@ -1,7 +1,19 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 
-function mapVital(record) {
+// Calcula diferencia entre reloj Supabase y browser
+async function measureClockOffset() {
+  const t0 = Date.now()
+  const { data } = await supabase.from('vitales').select('created_at').order('created_at', { ascending: false }).limit(1)
+  const t1 = Date.now()
+  if (!data?.[0]?.created_at) return 0
+  const serverTs = new Date(data[0].created_at).getTime()
+  const browserMid = (t0 + t1) / 2  // punto medio del roundtrip
+  return serverTs - browserMid       // positivo = Supabase adelantado
+}
+
+function mapVital(record, clockOffset = 0) {
+  const serverTs = new Date(record.created_at).getTime()
   return {
     id: record.id,
     ambulance: record.ambulancia_id ?? record.patient_hash?.slice(0, 8) ?? 'AMB-??',
@@ -10,8 +22,8 @@ function mapVital(record) {
     fc: record.frecuencia_cardiaca ?? record.fc ?? 0,
     pa: record.presion_arterial ?? record.pa ?? '0/0',
     spo2: record.spo2 ?? 98,
-    // Usa el timestamp real del INSERT en Supabase (unico por registro)
-    receivedAt: new Date(record.created_at).getTime(),
+    // Ajusta el timestamp del servidor al tiempo equivalente en el browser
+    receivedAt: serverTs - clockOffset,
   }
 }
 
@@ -26,6 +38,7 @@ export function useSupabaseRealtime() {
   const [connectionStatus, setConnectionStatus] = useState('CONNECTING')
   const [avgLatency, setAvgLatency] = useState(0)
   const latencyWindowRef = useRef([])
+  const clockOffsetRef = useRef(0)
   const channelRef = useRef(null)
 
   // Ping cada 3s para latencia promedio
@@ -44,7 +57,11 @@ export function useSupabaseRealtime() {
   }, [])
 
   useEffect(() => {
-    async function loadInitialData() {
+    async function init() {
+      // 1. Medir offset de reloj antes de cargar datos
+      clockOffsetRef.current = await measureClockOffset()
+
+      // 2. Cargar datos iniciales
       const since = new Date(Date.now() - 60_000).toISOString()
       const { data, error } = await supabase
         .from('vitales')
@@ -61,16 +78,17 @@ export function useSupabaseRealtime() {
         seen.add(r.patient_hash)
         return true
       })
-      setPatients(unique.map(mapVital))
+      setPatients(unique.map((r) => mapVital(r, clockOffsetRef.current)))
     }
 
-    loadInitialData()
+    init()
 
     const channel = supabase
       .channel('vitales-realtime')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'vitales' },
         (payload) => {
-          setPatients((prev) => mergeByAmbulance(prev, mapVital(payload.new)))
+          const record = mapVital(payload.new, clockOffsetRef.current)
+          setPatients((prev) => mergeByAmbulance(prev, record))
           setEventsReceived((prev) => prev + 1)
         }
       )
