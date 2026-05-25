@@ -1,7 +1,35 @@
 import { SyncResult, VitalLocalRecord } from '../types/vitals';
+import * as Crypto from 'expo-crypto';
 
-const endpoint = process.env.EXPO_PUBLIC_INGEST_VITALS_URL;
-const mockSync = process.env.EXPO_PUBLIC_USE_MOCK_SYNC !== 'false';
+type SyncMode = 'mock' | 'edge' | 'supabase';
+
+const edgeEndpoint = process.env.EXPO_PUBLIC_INGEST_VITALS_URL;
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+const hospitalId = process.env.EXPO_PUBLIC_HOSPITAL_ID ?? 'HSP-SAN-VICENTE';
+const hashSalt = process.env.EXPO_PUBLIC_PATIENT_HASH_SALT ?? 'vitalsync-demo-salt';
+
+function getSyncMode(): SyncMode {
+  const configuredMode = process.env.EXPO_PUBLIC_SYNC_MODE as SyncMode | undefined;
+
+  if (configuredMode === 'edge' || configuredMode === 'supabase' || configuredMode === 'mock') {
+    return configuredMode;
+  }
+
+  // Compatibility with the first Expo prototype.
+  return process.env.EXPO_PUBLIC_USE_MOCK_SYNC === 'false' ? 'edge' : 'mock';
+}
+
+async function createPatientHash(patientId: string) {
+  return Crypto.digestStringAsync(
+    Crypto.CryptoDigestAlgorithm.SHA256,
+    `${patientId}:${hashSalt}`,
+  );
+}
+
+function normalizeTriage(triage: VitalLocalRecord['triage']) {
+  return triage.toUpperCase();
+}
 
 function toIngestPayload(record: VitalLocalRecord) {
   return {
@@ -14,6 +42,7 @@ function toIngestPayload(record: VitalLocalRecord) {
     ekg_base64: record.ekgBase64,
     ekg_bytes: record.ekgBytes,
     notes: record.notes,
+    hospital_id: hospitalId,
     client_record_id: record.id,
     client_created_at: record.createdAt,
     client_updated_at: record.updatedAt,
@@ -21,7 +50,9 @@ function toIngestPayload(record: VitalLocalRecord) {
 }
 
 export async function syncVitalRecord(record: VitalLocalRecord): Promise<SyncResult> {
-  if (mockSync || !endpoint) {
+  const syncMode = getSyncMode();
+
+  if (syncMode === 'mock') {
     await new Promise((resolve) => setTimeout(resolve, 350));
     return {
       ok: true,
@@ -29,8 +60,23 @@ export async function syncVitalRecord(record: VitalLocalRecord): Promise<SyncRes
     };
   }
 
+  if (syncMode === 'supabase') {
+    return syncVitalViaSupabase(record);
+  }
+
+  return syncVitalViaEdgeFunction(record);
+}
+
+async function syncVitalViaEdgeFunction(record: VitalLocalRecord): Promise<SyncResult> {
+  if (!edgeEndpoint) {
+    return {
+      ok: false,
+      error: 'Missing EXPO_PUBLIC_INGEST_VITALS_URL',
+    };
+  }
+
   try {
-    const response = await fetch(endpoint, {
+    const response = await fetch(edgeEndpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -59,6 +105,88 @@ export async function syncVitalRecord(record: VitalLocalRecord): Promise<SyncRes
     return {
       ok: false,
       error: error instanceof Error ? error.message : 'Unknown sync error',
+    };
+  }
+}
+
+async function syncVitalViaSupabase(record: VitalLocalRecord): Promise<SyncResult> {
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return {
+      ok: false,
+      error: 'Missing EXPO_PUBLIC_SUPABASE_URL or EXPO_PUBLIC_SUPABASE_ANON_KEY',
+    };
+  }
+
+  const patientHash = await createPatientHash(record.patientId);
+  const apiBase = `${supabaseUrl.replace(/\/$/, '')}/rest/v1`;
+  const headers = {
+    apikey: supabaseAnonKey,
+    Authorization: `Bearer ${supabaseAnonKey}`,
+    'Content-Type': 'application/json',
+  };
+
+  try {
+    const patientResponse = await fetch(`${apiBase}/pacientes_dim?on_conflict=patient_hash`, {
+      method: 'POST',
+      headers: {
+        ...headers,
+        Prefer: 'resolution=merge-duplicates,return=minimal',
+      },
+      body: JSON.stringify({
+        patient_hash: patientHash,
+        hospital_id: hospitalId,
+      }),
+    });
+
+    if (!patientResponse.ok) {
+      const text = await patientResponse.text();
+      return {
+        ok: false,
+        error: `pacientes_dim HTTP ${patientResponse.status}: ${text || patientResponse.statusText}`,
+      };
+    }
+
+    const createdAt = new Date().toISOString();
+    const vitalResponse = await fetch(`${apiBase}/vitales`, {
+      method: 'POST',
+      headers: {
+        ...headers,
+        Prefer: 'return=representation',
+      },
+      body: JSON.stringify({
+        ambulancia_id: record.ambulanceId,
+        patient_hash: patientHash,
+        hospital_id: hospitalId,
+        frecuencia_cardiaca: record.heartRate,
+        presion_arterial: record.bloodPressure,
+        triage: normalizeTriage(record.triage),
+        ekg_url: record.ekgBase64
+          ? `data:image/jpeg;base64,${record.ekgBase64}`
+          : null,
+        created_at: createdAt,
+      }),
+    });
+
+    if (!vitalResponse.ok) {
+      const text = await vitalResponse.text();
+      return {
+        ok: false,
+        error: `vitales HTTP ${vitalResponse.status}: ${text || vitalResponse.statusText}`,
+      };
+    }
+
+    const body = (await vitalResponse.json().catch(() => [])) as Array<{
+      created_at?: string;
+    }>;
+
+    return {
+      ok: true,
+      serverTimestamp: body[0]?.created_at ?? createdAt,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : 'Unknown Supabase sync error',
     };
   }
 }
