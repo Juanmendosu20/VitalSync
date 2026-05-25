@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 
+// receivedAt = momento exacto en que el evento llegó al browser
 function mapVital(record, receivedAt = Date.now()) {
   return {
     id: record.id,
@@ -10,8 +11,6 @@ function mapVital(record, receivedAt = Date.now()) {
     fc: record.frecuencia_cardiaca ?? record.fc ?? 0,
     pa: record.presion_arterial ?? record.pa ?? '0/0',
     spo2: record.spo2 ?? 98,
-    // Latencia puntual: cuánto tardó en llegar el evento al browser
-    latency: receivedAt - new Date(record.created_at ?? receivedAt).getTime(),
     receivedAt,
   }
 }
@@ -32,16 +31,16 @@ export function useSupabaseRealtime() {
     patientsRef.current = patients
   }, [patients])
 
-  // Promedio de latencias puntuales (no aumenta con el tiempo)
+  // Latencia = hace cuántos ms llegó el último dato de cada ambulancia
+  // Sube 1ms/ms pero se resetea a ~0 cuando llega un evento nuevo
   useEffect(() => {
     const interval = setInterval(() => {
       const list = patientsRef.current
       if (!list.length) return setAvgLatency(0)
-      const valid = list
-        .map((p) => p.latency)
-        .filter((l) => l >= 0 && l < 30_000)
-      if (!valid.length) return setAvgLatency(0)
-      setAvgLatency(Math.round(valid.reduce((s, v) => s + v, 0) / valid.length))
+      const now = Date.now()
+      const ages = list.map((p) => now - p.receivedAt)
+      const avg = ages.reduce((s, v) => s + v, 0) / ages.length
+      setAvgLatency(Math.round(avg))
     }, 1000)
     return () => clearInterval(interval)
   }, [])
