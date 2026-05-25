@@ -10,7 +10,8 @@ function mapVital(record) {
     fc: record.frecuencia_cardiaca ?? record.fc ?? 0,
     pa: record.presion_arterial ?? record.pa ?? '0/0',
     spo2: record.spo2 ?? 98,
-    receivedAt: Date.now(), // timestamp de cuando llegó al browser
+    // Usa el timestamp real del INSERT en Supabase (unico por registro)
+    receivedAt: new Date(record.created_at).getTime(),
   }
 }
 
@@ -24,17 +25,10 @@ export function useSupabaseRealtime() {
   const [eventsReceived, setEventsReceived] = useState(0)
   const [connectionStatus, setConnectionStatus] = useState('CONNECTING')
   const [avgLatency, setAvgLatency] = useState(0)
-  const [tick, setTick] = useState(0) // fuerza re-render cada segundo para los ms por tarjeta
   const latencyWindowRef = useRef([])
   const channelRef = useRef(null)
 
-  // Tick cada segundo para actualizar el tiempo por tarjeta
-  useEffect(() => {
-    const t = setInterval(() => setTick((n) => n + 1), 1000)
-    return () => clearInterval(t)
-  }, [])
-
-  // Ping a Supabase cada 3s para latencia promedio real
+  // Ping cada 3s para latencia promedio
   useEffect(() => {
     const pingInterval = setInterval(async () => {
       const t0 = Date.now()
@@ -51,7 +45,7 @@ export function useSupabaseRealtime() {
 
   useEffect(() => {
     async function loadInitialData() {
-      const since = new Date(Date.now() - 30_000).toISOString()
+      const since = new Date(Date.now() - 60_000).toISOString()
       const { data, error } = await supabase
         .from('vitales')
         .select('*')
@@ -59,10 +53,7 @@ export function useSupabaseRealtime() {
         .gte('created_at', since)
         .limit(100)
 
-      if (error) {
-        setConnectionStatus('ERROR')
-        return
-      }
+      if (error) { setConnectionStatus('ERROR'); return }
 
       const seen = new Set()
       const unique = (data ?? []).filter((r) => {
@@ -93,11 +84,5 @@ export function useSupabaseRealtime() {
     return () => { supabase.removeChannel(channel) }
   }, [])
 
-  // Enriquecer patients con cardLatency calculada en tiempo real
-  const patientsWithLatency = patients.map((p) => ({
-    ...p,
-    cardLatency: Date.now() - p.receivedAt, // ms desde que llegó el último dato
-  }))
-
-  return { patients: patientsWithLatency, eventsReceived, connectionStatus, avgLatency }
+  return { patients, eventsReceived, connectionStatus, avgLatency }
 }
