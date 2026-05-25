@@ -10,6 +10,7 @@ function mapVital(record) {
     fc: record.frecuencia_cardiaca ?? record.fc ?? 0,
     pa: record.presion_arterial ?? record.pa ?? '0/0',
     spo2: record.spo2 ?? 98,
+    receivedAt: Date.now(), // timestamp de cuando llegó al browser
   }
 }
 
@@ -23,16 +24,22 @@ export function useSupabaseRealtime() {
   const [eventsReceived, setEventsReceived] = useState(0)
   const [connectionStatus, setConnectionStatus] = useState('CONNECTING')
   const [avgLatency, setAvgLatency] = useState(0)
+  const [tick, setTick] = useState(0) // fuerza re-render cada segundo para los ms por tarjeta
   const latencyWindowRef = useRef([])
   const channelRef = useRef(null)
 
-  // Mide latencia real con roundtrip: envia timestamp y mide cuánto tarda en volver
+  // Tick cada segundo para actualizar el tiempo por tarjeta
+  useEffect(() => {
+    const t = setInterval(() => setTick((n) => n + 1), 1000)
+    return () => clearInterval(t)
+  }, [])
+
+  // Ping a Supabase cada 3s para latencia promedio real
   useEffect(() => {
     const pingInterval = setInterval(async () => {
-      if (!channelRef.current) return
       const t0 = Date.now()
       try {
-        await supabase.from('vitales').select('id').limit(1).single()
+        await supabase.from('vitales').select('id').limit(1)
         const rtt = Date.now() - t0
         latencyWindowRef.current = [...latencyWindowRef.current, rtt].slice(-10)
         const win = latencyWindowRef.current
@@ -53,7 +60,6 @@ export function useSupabaseRealtime() {
         .limit(100)
 
       if (error) {
-        console.error('Error cargando vitales:', error)
         setConnectionStatus('ERROR')
         return
       }
@@ -71,9 +77,7 @@ export function useSupabaseRealtime() {
 
     const channel = supabase
       .channel('vitales-realtime')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'vitales' },
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'vitales' },
         (payload) => {
           setPatients((prev) => mergeByAmbulance(prev, mapVital(payload.new)))
           setEventsReceived((prev) => prev + 1)
@@ -89,5 +93,11 @@ export function useSupabaseRealtime() {
     return () => { supabase.removeChannel(channel) }
   }, [])
 
-  return { patients, eventsReceived, connectionStatus, avgLatency }
+  // Enriquecer patients con cardLatency calculada en tiempo real
+  const patientsWithLatency = patients.map((p) => ({
+    ...p,
+    cardLatency: Date.now() - p.receivedAt, // ms desde que llegó el último dato
+  }))
+
+  return { patients: patientsWithLatency, eventsReceived, connectionStatus, avgLatency }
 }

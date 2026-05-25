@@ -4,6 +4,12 @@ function getTriageClass(triage) {
   return 'triage-green'
 }
 
+function formatAge(ms) {
+  if (ms < 1000) return `${ms} ms`
+  if (ms < 60000) return `${Math.round(ms / 1000)}s`
+  return `${Math.round(ms / 60000)}m`
+}
+
 export function PatientList({ patients }) {
   return (
     <section>
@@ -32,7 +38,7 @@ export function PatientList({ patients }) {
               <span>SpO₂ <strong>{patient.spo2}%</strong></span>
             </div>
 
-            <div className="latency-pill">{patient.latency} ms</div>
+            <div className="latency-pill">{formatAge(patient.cardLatency ?? 0)}</div>
           </article>
         ))}
       </div>
