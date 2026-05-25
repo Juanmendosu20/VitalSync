@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 
-function mapVital(record, latency = 0) {
+function mapVital(record) {
   return {
     id: record.id,
     ambulance: record.ambulancia_id ?? record.patient_hash?.slice(0, 8) ?? 'AMB-??',
@@ -10,7 +10,6 @@ function mapVital(record, latency = 0) {
     fc: record.frecuencia_cardiaca ?? record.fc ?? 0,
     pa: record.presion_arterial ?? record.pa ?? '0/0',
     spo2: record.spo2 ?? 98,
-    latency, // ms que tardó el evento en viajar de Supabase al browser
   }
 }
 
@@ -19,24 +18,29 @@ function mergeByAmbulance(prev, newRecord) {
   return [newRecord, ...without].slice(0, 50)
 }
 
-// Calcula latencia real: navegador recibe el evento y resta created_at
-// Si el reloj del servidor está ligeramente adelantado, puede dar negativo → clamp a 0
-// Valores esperados: 100–800 ms en condiciones normales
-function calcLatency(record) {
-  if (!record.created_at) return 0
-  const serverTs = new Date(record.created_at).getTime()
-  const diff = Date.now() - serverTs
-  // Clamp: entre 0 y 5000 ms. Si da negativo es desfase de reloj (<100ms)
-  return Math.min(Math.max(diff, 0), 5000)
-}
-
 export function useSupabaseRealtime() {
   const [patients, setPatients] = useState([])
   const [eventsReceived, setEventsReceived] = useState(0)
   const [connectionStatus, setConnectionStatus] = useState('CONNECTING')
-  // Ventana deslizante de las últimas 20 latencias reales
-  const latencyWindowRef = useRef([])
   const [avgLatency, setAvgLatency] = useState(0)
+  const latencyWindowRef = useRef([])
+  const channelRef = useRef(null)
+
+  // Mide latencia real con roundtrip: envia timestamp y mide cuánto tarda en volver
+  useEffect(() => {
+    const pingInterval = setInterval(async () => {
+      if (!channelRef.current) return
+      const t0 = Date.now()
+      try {
+        await supabase.from('vitales').select('id').limit(1).single()
+        const rtt = Date.now() - t0
+        latencyWindowRef.current = [...latencyWindowRef.current, rtt].slice(-10)
+        const win = latencyWindowRef.current
+        setAvgLatency(Math.round(win.reduce((s, v) => s + v, 0) / win.length))
+      } catch (_) {}
+    }, 3000)
+    return () => clearInterval(pingInterval)
+  }, [])
 
   useEffect(() => {
     async function loadInitialData() {
@@ -60,8 +64,7 @@ export function useSupabaseRealtime() {
         seen.add(r.patient_hash)
         return true
       })
-      // Para datos iniciales, latencia = 0 (no medida en tiempo real)
-      setPatients(unique.map((r) => mapVital(r, 0)))
+      setPatients(unique.map(mapVital))
     }
 
     loadInitialData()
@@ -72,17 +75,7 @@ export function useSupabaseRealtime() {
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'vitales' },
         (payload) => {
-          // Latencia real = tiempo de viaje Supabase → browser
-          const lat = calcLatency(payload.new)
-          const newPatient = mapVital(payload.new, lat)
-
-          // Ventana deslizante: guardar las últimas 20 latencias reales
-          latencyWindowRef.current = [...latencyWindowRef.current, lat].slice(-20)
-          const window = latencyWindowRef.current
-          const avg = Math.round(window.reduce((s, v) => s + v, 0) / window.length)
-          setAvgLatency(avg)
-
-          setPatients((prev) => mergeByAmbulance(prev, newPatient))
+          setPatients((prev) => mergeByAmbulance(prev, mapVital(payload.new)))
           setEventsReceived((prev) => prev + 1)
         }
       )
@@ -92,6 +85,7 @@ export function useSupabaseRealtime() {
         if (status === 'CLOSED') setConnectionStatus('CLOSED')
       })
 
+    channelRef.current = channel
     return () => { supabase.removeChannel(channel) }
   }, [])
 
