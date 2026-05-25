@@ -13,11 +13,19 @@ const AMBULANCIAS = [
   { id: 'AMB-003', lat: 6.2380, lng: -75.5900 },
   { id: 'AMB-004', lat: 6.2600, lng: -75.5650 },
   { id: 'AMB-005', lat: 6.2310, lng: -75.5780 },
+  { id: 'AMB-006', lat: 6.2470, lng: -75.5830 },
+  { id: 'AMB-007', lat: 6.2550, lng: -75.5710 },
+  { id: 'AMB-008', lat: 6.2395, lng: -75.5860 },
+  { id: 'AMB-009', lat: 6.2615, lng: -75.5630 },
+  { id: 'AMB-010', lat: 6.2325, lng: -75.5760 },
+  { id: 'AMB-011', lat: 6.2480, lng: -75.5800 },
+  { id: 'AMB-012', lat: 6.2540, lng: -75.5720 },
+  { id: 'AMB-013', lat: 6.2370, lng: -75.5920 },
+  { id: 'AMB-014', lat: 6.2590, lng: -75.5660 },
+  { id: 'AMB-015', lat: 6.2300, lng: -75.5790 },
 ];
 
 const HOSPITAL_ID = 'HSP-SAN-VICENTE';
-
-// EKG fake en Base64 (~1 MB como especifica el enunciado)
 const fakeEKG = Buffer.from('FAKE_EKG_DATA_' + 'x'.repeat(100)).toString('base64');
 
 function randomInt(min, max) {
@@ -31,7 +39,6 @@ function randomTriage() {
   return 'VERDE';
 }
 
-// Hash fijo por ambulancia (simula paciente estable en la ambulancia)
 function hashAmbulancia(ambId) {
   const salt = process.env.PATIENT_HASH_SALT || 'default_salt';
   return crypto.createHmac('sha256', salt).update(ambId).digest('hex');
@@ -41,17 +48,10 @@ async function enviarDatos(ambulancia) {
   const triage = randomTriage();
   const patient_hash = hashAmbulancia(ambulancia.id);
 
-  // 1. Upsert en pacientes_dim (crea si no existe, ignora si ya existe)
-  const { error: errPaciente } = await supabase
+  await supabase
     .from('pacientes_dim')
     .upsert({ patient_hash, hospital_id: HOSPITAL_ID }, { onConflict: 'patient_hash' });
 
-  if (errPaciente) {
-    console.error(`❌ [${ambulancia.id}] Error pacientes_dim:`, errPaciente.message);
-    return;
-  }
-
-  // 2. Insertar signos vitales con ambulancia_id para identificación en dashboard
   const payload = {
     ambulancia_id: ambulancia.id,
     patient_hash,
@@ -62,25 +62,24 @@ async function enviarDatos(ambulancia) {
     ekg_url: `data:image/png;base64,${fakeEKG}`,
   };
 
-  const { error: errVital } = await supabase
-    .from('vitales')
-    .insert(payload);
+  const { error } = await supabase.from('vitales').insert(payload);
 
-  if (errVital) {
-    console.error(`❌ [${ambulancia.id}] Error vitales:`, errVital.message);
+  const emoji = triage === 'ROJO' ? '🔴' : triage === 'AMARILLO' ? '🟡' : '🟢';
+  if (error) {
+    console.error(`❌ [${ambulancia.id}]`, error.message);
   } else {
-    const emoji = triage === 'ROJO' ? '🔴' : triage === 'AMARILLO' ? '🟡' : '🟢';
     console.log(`${emoji} [${ambulancia.id}] FC:${payload.frecuencia_cardiaca} PA:${payload.presion_arterial} → ${triage}`);
   }
 }
 
-async function ciclo() {
-  console.log(`\n⏱️  [${new Date().toLocaleTimeString()}] Enviando datos de ${AMBULANCIAS.length} ambulancias...`);
-  await Promise.all(AMBULANCIAS.map(enviarDatos));
-}
+// Rotar ambulancias: 1 por segundo
+let index = 0;
 
-console.log('🚑 VitalSync Mock Simulator iniciado');
-console.log(`📡 Conectado a: ${process.env.SUPABASE_URL}\n`);
+console.log('🚑 VitalSync Simulator — 1 ambulancia/seg');
+console.log(`📡 ${process.env.SUPABASE_URL}\n`);
 
-ciclo();
-setInterval(ciclo, 10000);
+setInterval(() => {
+  const amb = AMBULANCIAS[index % AMBULANCIAS.length];
+  index++;
+  enviarDatos(amb);
+}, 1000);

@@ -8,7 +8,6 @@ export function PatientList({ patients }) {
   return (
     <section>
       <h2 className="section-title">Pacientes en ruta</h2>
-
       <div className="patient-list">
         {patients.map((patient) => (
           <article
@@ -19,7 +18,6 @@ export function PatientList({ patients }) {
               <span className={`triage-badge ${getTriageClass(patient.triage)}`}>
                 {patient.triage}
               </span>
-
               <div>
                 <h3>{patient.ambulance}</h3>
                 <p>{patient.patientHash}</p>
@@ -32,7 +30,9 @@ export function PatientList({ patients }) {
               <span>SpO₂ <strong>{patient.spo2}%</strong></span>
             </div>
 
-            <div className="latency-pill">{patient.latency} ms</div>
+            <div className="latency-pill">
+              {patient.latency != null ? `${patient.latency} ms` : '-- ms'}
+            </div>
           </article>
         ))}
       </div>
