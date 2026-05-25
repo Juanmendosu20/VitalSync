@@ -1,95 +1,139 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Q } from '@nozbe/watermelondb';
+import { RawRecord } from '@nozbe/watermelondb/RawRecord';
 
-import { VitalDraft, VitalLocalRecord } from '../types/vitals';
-
-const VITALS_KEY = '@vitalsync/vitales_local';
+import { localVitalsCollection } from '../database';
+import { LocalVital } from '../database/models/LocalVital';
+import { VitalDraft, VitalLocalRecord, TriageLevel } from '../types/vitals';
 
 const nowIso = () => new Date().toISOString();
 
-const createId = () =>
-  `vital_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+type LocalVitalRaw = RawRecord & {
+  patient_id: string;
+  ambulance_id: string;
+  heart_rate: number;
+  blood_pressure: string;
+  triage: TriageLevel;
+  ekg_base64?: string | null;
+  ekg_bytes: number;
+  notes?: string | null;
+  synced: boolean;
+  retry_count: number;
+  created_at: string;
+  updated_at: string;
+  synced_at?: string | null;
+  server_timestamp?: string | null;
+  last_error?: string | null;
+};
 
-export async function getLocalVitals(): Promise<VitalLocalRecord[]> {
-  const raw = await AsyncStorage.getItem(VITALS_KEY);
-  if (!raw) {
-    return [];
-  }
+function toRecord(model: LocalVital): VitalLocalRecord {
+  const raw = model._raw as LocalVitalRaw;
 
-  try {
-    const parsed = JSON.parse(raw) as VitalLocalRecord[];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
+  return {
+    id: model.id,
+    patientId: raw.patient_id,
+    ambulanceId: raw.ambulance_id,
+    heartRate: raw.heart_rate,
+    bloodPressure: raw.blood_pressure,
+    triage: raw.triage,
+    ekgBase64: raw.ekg_base64 ?? undefined,
+    ekgBytes: raw.ekg_bytes,
+    notes: raw.notes ?? undefined,
+    synced: raw.synced,
+    retryCount: raw.retry_count,
+    createdAt: raw.created_at,
+    updatedAt: raw.updated_at,
+    syncedAt: raw.synced_at ?? undefined,
+    serverTimestamp: raw.server_timestamp ?? undefined,
+    lastError: raw.last_error ?? undefined,
+  };
 }
 
-async function saveLocalVitals(records: VitalLocalRecord[]) {
-  const ordered = [...records].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  await AsyncStorage.setItem(VITALS_KEY, JSON.stringify(ordered));
-  return ordered;
+function assignRaw(model: LocalVital, patch: Partial<LocalVitalRaw>) {
+  Object.entries(patch).forEach(([key, value]) => {
+    model._setRaw(key as never, value ?? null);
+  });
+}
+
+export async function getLocalVitals(): Promise<VitalLocalRecord[]> {
+  const records = await localVitalsCollection
+    .query(Q.sortBy('created_at', Q.desc))
+    .fetch();
+
+  return records.map(toRecord);
 }
 
 export async function addLocalVital(draft: VitalDraft): Promise<VitalLocalRecord[]> {
   const timestamp = nowIso();
-  const current = await getLocalVitals();
-  const record: VitalLocalRecord = {
-    id: createId(),
-    patientId: draft.patientId.trim(),
-    ambulanceId: draft.ambulanceId.trim(),
-    heartRate: draft.heartRate,
-    bloodPressure: draft.bloodPressure.trim(),
-    triage: draft.triage,
-    ekgBase64: draft.ekgBase64,
-    ekgBytes: draft.ekgBytes,
-    notes: draft.notes?.trim(),
-    synced: false,
-    retryCount: 0,
-    createdAt: timestamp,
-    updatedAt: timestamp,
-  };
 
-  return saveLocalVitals([record, ...current]);
+  await localVitalsCollection.database.write(async () => {
+    await localVitalsCollection.create((record) => {
+      assignRaw(record, {
+        patient_id: draft.patientId.trim(),
+        ambulance_id: draft.ambulanceId.trim(),
+        heart_rate: draft.heartRate,
+        blood_pressure: draft.bloodPressure.trim(),
+        triage: draft.triage,
+        ekg_base64: draft.ekgBase64 ?? null,
+        ekg_bytes: draft.ekgBytes,
+        notes: draft.notes?.trim() || null,
+        synced: false,
+        retry_count: 0,
+        created_at: timestamp,
+        updated_at: timestamp,
+      });
+    });
+  });
+
+  return getLocalVitals();
 }
 
 export async function markVitalSynced(
   id: string,
   serverTimestamp?: string,
 ): Promise<VitalLocalRecord[]> {
-  const current = await getLocalVitals();
-  return saveLocalVitals(
-    current.map((record) =>
-      record.id === id
-        ? {
-            ...record,
-            synced: true,
-            syncedAt: nowIso(),
-            serverTimestamp,
-            lastError: undefined,
-          }
-        : record,
-    ),
-  );
+  await localVitalsCollection.database.write(async () => {
+    const record = await localVitalsCollection.find(id);
+
+    await record.update((model) => {
+      assignRaw(model, {
+        synced: true,
+        synced_at: nowIso(),
+        server_timestamp: serverTimestamp ?? null,
+        last_error: null,
+      });
+    });
+  });
+
+  return getLocalVitals();
 }
 
 export async function markVitalSyncFailed(
   id: string,
   error: string,
 ): Promise<VitalLocalRecord[]> {
-  const current = await getLocalVitals();
-  return saveLocalVitals(
-    current.map((record) =>
-      record.id === id
-        ? {
-            ...record,
-            retryCount: record.retryCount + 1,
-            lastError: error,
-          }
-        : record,
-    ),
-  );
+  await localVitalsCollection.database.write(async () => {
+    const record = await localVitalsCollection.find(id);
+    const raw = record._raw as LocalVitalRaw;
+
+    await record.update((model) => {
+      assignRaw(model, {
+        retry_count: raw.retry_count + 1,
+        last_error: error,
+      });
+    });
+  });
+
+  return getLocalVitals();
 }
 
 export async function clearSyncedVitals(): Promise<VitalLocalRecord[]> {
-  const current = await getLocalVitals();
-  return saveLocalVitals(current.filter((record) => !record.synced));
+  await localVitalsCollection.database.write(async () => {
+    const syncedRecords = await localVitalsCollection
+      .query(Q.where('synced', true))
+      .fetch();
+
+    await Promise.all(syncedRecords.map((record) => record.markAsDeleted()));
+  });
+
+  return getLocalVitals();
 }

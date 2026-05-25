@@ -1,12 +1,14 @@
 # VitalSync Movil
 
-App Expo para la Persona 3 del proyecto VitalSync. Implementa el flujo offline-first del ADR-002: los signos vitales se guardan primero en una cola local `vitales_local` y luego se sincronizan automaticamente cuando hay conexion.
+App Expo/React Native para la Persona 3 del proyecto VitalSync. Implementa el flujo offline-first del ADR-002: los signos vitales se guardan primero en WatermelonDB (`vitales_local`, SQLite local) y luego se sincronizan automaticamente cuando hay conexion.
+
+La app movil se plantea como un cliente externo del sistema, no como parte de un monolito. Consume servicios serverless separados: Supabase REST/Realtime, Supabase Edge Functions y el HIS mock publicado como API.
 
 ## Funcionalidad incluida
 
 - Formulario para FC, PA, Triage, ambulancia, paciente y notas clinicas.
 - Adjuntar foto EKG en Base64 desde galeria o camara, con limite de 1 MB.
-- Persistencia local con campo `synced: boolean`, `retryCount`, timestamps y errores.
+- Persistencia local con WatermelonDB y tabla `vitales_local` con `synced: boolean`, `retryCount`, timestamps y errores.
 - Deteccion de conexion con NetInfo.
 - Sincronizacion automatica en tres modos: `mock`, `supabase` directo o `edge` contra `ingest-vitals`.
 - Payload compatible con el contrato del documento: `patient_id`, `fc`, `pa`, `triage`, `ekg_base64`, `client_updated_at`.
@@ -24,6 +26,8 @@ Para Android con Expo:
 ```bash
 npm run android
 ```
+
+> Nota: WatermelonDB usa un modulo nativo de SQLite. Para una prueba en tablet o APK se debe usar un development build o APK nativa, no Expo Go puro.
 
 ## Configuracion
 
@@ -75,6 +79,19 @@ En `EXPO_PUBLIC_SYNC_MODE=supabase`, la app:
 3. Inserta en `vitales` con `ambulancia_id`, `frecuencia_cardiaca`, `presion_arterial`, `triage`, `ekg_url` y `created_at`.
 4. El dashboard recibe el registro por Supabase Realtime.
 
+## Arquitectura movil
+
+La app movil queda separada del dashboard y del backend. Su responsabilidad es capturar datos clinicos en ambulancia, persistirlos localmente y sincronizarlos con el backend serverless cuando haya red.
+
+Componentes principales:
+
+- UI React Native: formulario clinico y cola local.
+- WatermelonDB: base local SQLite offline-first (`vitales_local`).
+- Sync service: adaptador para `mock`, `supabase` directo o `edge`.
+- Supabase/serverless: servicios externos consumidos por HTTP; la app no contiene logica del dashboard ni del HIS.
+
+Esto mantiene la modificabilidad: si cambia `ingest-vitals` o Supabase, se reemplaza `src/services/syncVitals.ts` sin tocar el formulario ni la base local.
+
 ## Prueba offline-first
 
 1. Abrir la app con Expo.
@@ -84,6 +101,6 @@ En `EXPO_PUBLIC_SYNC_MODE=supabase`, la app:
 5. Reactivar internet.
 6. Confirmar que la app sincroniza automaticamente y marca el registro como `Sincronizado`.
 
-## Nota sobre WatermelonDB
+## APK / tablet
 
-El protocolo pide React Native + WatermelonDB. Para avanzar rapido en Expo Go, esta version usa una capa local aislada en `src/services/localVitalsStore.ts` con el mismo contrato de `vitales_local`. WatermelonDB requiere configuracion nativa/dev build; si el equipo lo exige como dependencia final, se reemplaza solo esa capa de almacenamiento sin tocar el formulario ni el servicio de sincronizacion.
+La app ya tiene identificador Android `com.vitalsync.mobile`. Cuando el grupo decida avanzar a APK, el camino recomendado es generar un build nativo con Expo/EAS o `expo prebuild` y compilar Android. Para la entrega tambien puede presentarse como elemento externo conectado al dashboard mediante `EXPO_PUBLIC_SYNC_MODE=supabase`.
