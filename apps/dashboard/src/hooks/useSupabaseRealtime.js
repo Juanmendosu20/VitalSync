@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 
 // Mapea columnas reales de Supabase al formato del dashboard
@@ -7,18 +7,15 @@ function mapVital(record) {
     id: record.id,
     ambulance: record.ambulancia_id ?? record.patient_hash?.slice(0, 8) ?? 'AMB-??',
     patientHash: record.patient_hash,
-    // Normalizar a mayúsculas para compatibilidad con registros viejos y nuevos
     triage: (record.triage ?? 'VERDE').toUpperCase(),
     fc: record.frecuencia_cardiaca ?? record.fc ?? 0,
     pa: record.presion_arterial ?? record.pa ?? '0/0',
     spo2: record.spo2 ?? 98,
-    latency: record.created_at
-      ? Math.max(Date.now() - new Date(record.created_at).getTime(), 0)
-      : 0,
+    // Guardamos el timestamp del servidor, la latencia se recalcula cada segundo
+    serverTs: record.created_at ? new Date(record.created_at).getTime() : Date.now(),
   }
 }
 
-// Mantiene solo el ultimo vital por ambulancia (1 tarjeta por ambulancia)
 function mergeByAmbulance(prev, newRecord) {
   const without = prev.filter((p) => p.patientHash !== newRecord.patientHash)
   return [newRecord, ...without].slice(0, 50)
@@ -28,14 +25,37 @@ export function useSupabaseRealtime() {
   const [patients, setPatients] = useState([])
   const [eventsReceived, setEventsReceived] = useState(0)
   const [connectionStatus, setConnectionStatus] = useState('CONNECTING')
+  // Latencia promedio recalculada cada segundo
+  const [avgLatency, setAvgLatency] = useState(0)
+  const patientsRef = useRef([])
+
+  // Mantener ref sincronizada para el interval
+  useEffect(() => {
+    patientsRef.current = patients
+  }, [patients])
+
+  // Recalcular latencia promedio cada segundo
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const list = patientsRef.current
+      if (!list.length) return
+      const now = Date.now()
+      const avg = list.reduce((sum, p) => sum + (now - p.serverTs), 0) / list.length
+      setAvgLatency(Math.round(avg))
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [])
 
   useEffect(() => {
     async function loadInitialData() {
-      // Carga el ultimo registro de cada ambulancia
+      // Solo cargar registros de los últimos 60 segundos para evitar latencias falsas
+      const since = new Date(Date.now() - 60_000).toISOString()
+
       const { data, error } = await supabase
         .from('vitales')
         .select('*')
         .order('created_at', { ascending: false })
+        .gte('created_at', since)
         .limit(100)
 
       if (error) {
@@ -44,7 +64,6 @@ export function useSupabaseRealtime() {
         return
       }
 
-      // Deduplica: solo el mas reciente por patient_hash
       const seen = new Set()
       const unique = (data ?? []).filter((r) => {
         if (seen.has(r.patient_hash)) return false
@@ -77,5 +96,5 @@ export function useSupabaseRealtime() {
     return () => { supabase.removeChannel(channel) }
   }, [])
 
-  return { patients, eventsReceived, connectionStatus }
+  return { patients, eventsReceived, connectionStatus, avgLatency }
 }
