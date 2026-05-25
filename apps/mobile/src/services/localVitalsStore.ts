@@ -5,7 +5,9 @@ import { localVitalsCollection } from '../database';
 import { LocalVital } from '../database/models/LocalVital';
 import { VitalDraft, VitalLocalRecord, TriageLevel } from '../types/vitals';
 
-const nowIso = () => new Date().toISOString();
+const nowMs = () => Date.now();
+const toIso = (timestamp?: number | null) =>
+  timestamp ? new Date(timestamp).toISOString() : undefined;
 
 type LocalVitalRaw = RawRecord & {
   patient_id: string;
@@ -18,9 +20,9 @@ type LocalVitalRaw = RawRecord & {
   notes?: string | null;
   synced: boolean;
   retry_count: number;
-  created_at: string;
-  updated_at: string;
-  synced_at?: string | null;
+  created_at: number;
+  updated_at: number;
+  synced_at?: number | null;
   server_timestamp?: string | null;
   last_error?: string | null;
 };
@@ -40,9 +42,9 @@ function toRecord(model: LocalVital): VitalLocalRecord {
     notes: raw.notes ?? undefined,
     synced: raw.synced,
     retryCount: raw.retry_count,
-    createdAt: raw.created_at,
-    updatedAt: raw.updated_at,
-    syncedAt: raw.synced_at ?? undefined,
+    createdAt: toIso(raw.created_at) ?? new Date(0).toISOString(),
+    updatedAt: toIso(raw.updated_at) ?? new Date(0).toISOString(),
+    syncedAt: toIso(raw.synced_at),
     serverTimestamp: raw.server_timestamp ?? undefined,
     lastError: raw.last_error ?? undefined,
   };
@@ -63,7 +65,7 @@ export async function getLocalVitals(): Promise<VitalLocalRecord[]> {
 }
 
 export async function addLocalVital(draft: VitalDraft): Promise<VitalLocalRecord[]> {
-  const timestamp = nowIso();
+  const timestamp = nowMs();
 
   await localVitalsCollection.database.write(async () => {
     await localVitalsCollection.create((record) => {
@@ -97,7 +99,7 @@ export async function markVitalSynced(
     await record.update((model) => {
       assignRaw(model, {
         synced: true,
-        synced_at: nowIso(),
+        synced_at: nowMs(),
         server_timestamp: serverTimestamp ?? null,
         last_error: null,
       });
