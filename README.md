@@ -45,4 +45,9 @@ Para conectar la app externa con el dashboard usando Supabase:
 
 ```bash
 EXPO_PUBLIC_SYNC_MODE=supabase
+EXPO_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=<anon-key>
+EXPO_PUBLIC_HOSPITAL_ID=HSV-001
 ```
+
+En este modo la app inserta en `pacientes_dim` y `vitales`, por lo que el dashboard recibe los registros por Supabase Realtime. Para triage `ROJO`, tambien llama `sms-alert` y puede alimentar `his_queue` para el panel Circuit Breaker.

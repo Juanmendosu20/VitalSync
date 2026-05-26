@@ -11,7 +11,7 @@ La app movil se plantea como un cliente externo del sistema, no como parte de un
 - Persistencia local con WatermelonDB y tabla `vitales_local` con `synced: boolean`, `retryCount`, timestamps y errores.
 - Deteccion de conexion con NetInfo.
 - Sincronizacion automatica en tres modos: `mock`, `supabase` directo o `edge` contra `ingest-vitals`.
-- Payload compatible con el contrato del documento: `patient_id`, `fc`, `pa`, `triage`, `ekg_base64`, `client_updated_at`.
+- En modo `supabase`, inserta en el mismo contrato que consume el dashboard (`vitales`) y dispara `sms-alert` para triage `ROJO`.
 
 ## Ejecutar
 
@@ -55,13 +55,15 @@ La app tiene `expo-dev-client` instalado y `newArchEnabled=false` para reducir r
 Copia `.env.example` a `.env`:
 
 ```bash
-EXPO_PUBLIC_SYNC_MODE=mock
-EXPO_PUBLIC_USE_MOCK_SYNC=true
+EXPO_PUBLIC_SYNC_MODE=supabase
+EXPO_PUBLIC_USE_MOCK_SYNC=false
 EXPO_PUBLIC_INGEST_VITALS_URL=https://your-project-ref.functions.supabase.co/ingest-vitals
 EXPO_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
 EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-EXPO_PUBLIC_HOSPITAL_ID=HSP-SAN-VICENTE
+EXPO_PUBLIC_HOSPITAL_ID=HSV-001
 EXPO_PUBLIC_PATIENT_HASH_SALT=vitalsync-demo-salt
+EXPO_PUBLIC_SMS_ALERT_URL=https://your-project-ref.functions.supabase.co/sms-alert
+EXPO_PUBLIC_ENABLE_HIS_QUEUE=true
 ```
 
 ### Modos de sincronizacion
@@ -78,8 +80,10 @@ EXPO_PUBLIC_SYNC_MODE=mock
 EXPO_PUBLIC_SYNC_MODE=supabase
 EXPO_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
 EXPO_PUBLIC_SUPABASE_ANON_KEY=<anon-key>
-EXPO_PUBLIC_HOSPITAL_ID=HSP-SAN-VICENTE
+EXPO_PUBLIC_HOSPITAL_ID=HSV-001
 EXPO_PUBLIC_PATIENT_HASH_SALT=<mismo-salt-del-simulador>
+EXPO_PUBLIC_SMS_ALERT_URL=https://<project-ref>.functions.supabase.co/sms-alert
+EXPO_PUBLIC_ENABLE_HIS_QUEUE=true
 ```
 
 `edge` usa la Edge Function formal del documento. Activarlo cuando Backend entregue `ingest-vitals`:
@@ -89,7 +93,7 @@ EXPO_PUBLIC_SYNC_MODE=edge
 EXPO_PUBLIC_INGEST_VITALS_URL=https://<project-ref>.functions.supabase.co/ingest-vitals
 ```
 
-Si no defines `EXPO_PUBLIC_SYNC_MODE`, la app conserva compatibilidad con el primer prototipo: `EXPO_PUBLIC_USE_MOCK_SYNC=false` equivale a `edge`.
+Si no defines `EXPO_PUBLIC_SYNC_MODE`, la app usa `supabase` automaticamente cuando existen `EXPO_PUBLIC_SUPABASE_URL` y `EXPO_PUBLIC_SUPABASE_ANON_KEY`. Si no hay credenciales, cae a `mock`.
 
 ## Contrato Supabase directo
 
@@ -97,8 +101,10 @@ En `EXPO_PUBLIC_SYNC_MODE=supabase`, la app:
 
 1. Genera `patient_hash = SHA-256(patientId + salt)` con `expo-crypto`.
 2. Hace upsert en `pacientes_dim` con `patient_hash` y `hospital_id`.
-3. Inserta en `vitales` con `ambulancia_id`, `frecuencia_cardiaca`, `presion_arterial`, `triage`, `ekg_url` y `created_at`.
-4. El dashboard recibe el registro por Supabase Realtime.
+3. Inserta en `vitales` con `ambulancia_id`, `patient_hash`, `hospital_id`, `frecuencia_cardiaca`, `presion_arterial`, `triage` y `ekg_url`.
+4. El dashboard recibe el registro por Supabase Realtime y muestra la alerta visual/sonora si `triage = ROJO`.
+5. Si `triage = ROJO`, llama la Edge Function `sms-alert` con `{ patient_hash, hospital_id, triage }`.
+6. Si `EXPO_PUBLIC_ENABLE_HIS_QUEUE=true`, intenta registrar un resumen en `his_queue` para que el panel Circuit Breaker/HIS refleje la cola.
 
 ## Arquitectura movil
 
