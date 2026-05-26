@@ -1,1 +1,108 @@
-cmVxdWlyZSgnZG90ZW52JykuY29uZmlnKCk7CmNvbnN0IHsgY3JlYXRlQ2xpZW50IH0gPSByZXF1aXJlKCdAc3VwYWJhc2Uvc3VwYWJhc2UtanMnKTsKY29uc3QgY3J5cHRvID0gcmVxdWlyZSgnY3J5cHRvJyk7CgZjb25zdCBzdXBhYmFzZSA9IGNyZWF0ZUNsaWVudCgKICBwcm9jZXNzLmVudi5TVVBBQKFTRV9VUkwsCiAgcHJvY2Vzcy5lbnYuU1VQQUJBU0VfQU5PTl9LRVkKKTsKCmNvbnN0IEFNQVVMQU5DSUFTID0gWwogIHsgaWQ6ICdBTUItMDAxJywgbGF0OiA2LjI0NDIsIGxuZzogLTc1LjU4MTIgfSwKICB7IGlkOiAnQU1CLTAwMicsIGxhdDogNi4yNTMwLCBsbmc6IC03NS41NzQwIH0sCiAgeyBpZDogJ0FNQi0wMDMnLCBsYXQ6IDYuMjM4MCwgbG5nOiAtNzUuNTkwMCB9LAogIHsgaWQ6ICdBTUItMDA0JywgbGF0OiA2LjI2MDAsIGxuZzogLTc1LjU2NTAgfSwKICB7IGlkOiAnQU1CLTAwNScsIGxhdDogNi4yMzEwLCBsbmc6IC03NS41NzgwIH0sCiAgeyBpZDogJ0FNQi0wMDYnLCBsYXQ6IDYuMjQ3MCwgbG5nOiAtNzUuNTgzMCB9LAogIHsgaWQ6ICdBTUItMDA3JywgbGF0OiA2LjI1NTAsIGxuZzogLTc1LjU3MTAgfSwKICB7IGlkOiAnQU1CLTAwOCcsIGxhdDogNi4yMzk1LCBsbmc6IC03NS41ODYwIH0sCiAgeyBpZDogJ0FNQi0wMDknLCBsYXQ6IDYuMjYxNSwgbG5nOiAtNzUuNTYzMCB9LAogIHsgaWQ6ICdBTUItMDEwJywgbGF0OiA2LjIzMjUsIGxuZzogLTc1LjU3NjAgfSwKICB7IGlkOiAnQU1CLTAxMScsIGxhdDogNi4yNDgwLCBsbmc6IC03NS41ODAwIH0sCiAgeyBpZDogJ0FNQi0wMTInLCBsYXQ6IDYuMjU0MCwgbG5nOiAtNzUuNTcyMCB9LAogIHsgaWQ6ICdBTUItMDEzJywgbGF0OiA2LjIzNzAsIGxuZzogLTc1LjU5MjAgfSwKICB7IGlkOiAnQU1CLTAxNCcsIGxhdDogNi4yNTkwLCBsbmc6IC03NS41NjYwIH0sCiAgeyBpZDogJ0FNQi0wMTUnLCBsYXQ6IDYuMjMwMCwgbG5nOiAtNzUuNTc5MCB9LApdOwoKY29uc3QgSE9TUElUQUxfSUQgPSAnSFNWLTAwMSc7IC8vIENvcnJlZ2lkbzogY29pbmNpZGUgY29uIGNpcnVqYW5vc19ndWFyZGlhCmNvbnN0IGZha2VFS0cgPSBCdWZmZXIuZnJvbSgnRkFLRV9FS0dfREFUQV8nICsgJ3gnLnJlcGVhdCgxMDApKS50b1N0cmluZygnYmFzZTY0Jyk7Cgpjb25zdCBTVVBBQkFTRV9GVU5DVElPTlNfVVJMID0gcHJvY2Vzcy5lbnYuU1VQQUJBU0VfRlVOQ1RJT05TX1VSTCB8fCBgJHtwcm9jZXNzLmVudi5TVVBBQKFTRV9VUkx9L2Z1bmN0aW9ucy92MS9zbXMtYWxlcnRgOwpjb25zdCBTVVBBQkFTRV9BTk9OX0tFWSA9IHByb2Nlc3MuZW52LlNVUEFCQVNFX0FOT05fS0VZOwoKZnVuY3Rpb24gcmFuZG9tSW50KG1pbiwgbWF4KSB7CiAgcmV0dXJuIE1hdGguZmxvb3IoTWF0aC5yYW5kb20oKSAqIChtYXggLSBtaW4gKyAxKSkgKyBtaW47Cn0KCmZ1bmN0aW9uIHJhbmRvbVRyaWFnZSgpIHsKICBjb25zdCByYW5kID0gTWF0aC5yYW5kb20oKTsKICBpZiAocmFuZCA8IDAuMTUpIHJldHVybiAnUk9KTyc7CiAgaWYgKHJhbmQgPCAwLjQ1KSByZXR1cm4gJ0FNQVJJTE0nOwogIHJldHVybiAnVkVSREUnOwp9CgpmdW5jdGlvbiBoYXNoQW1idWxhbmNpYShhbWJJZCkgewogIGNvbnN0IHNhbHQgPSBwcm9jZXNzLmVudi5QQVRJRk5UX0hBU0hfU0FMVCB8fCAnZGVmYXVsdF9zYWx0JzsKICByZXR1cm4gY3J5cHRvLmNyZWF0ZUhtYWMoJ3NoYTI1NicsIHNhbHQpLnVwZGF0ZShhbWJJZCkuZGlnZXN0KCdoZXgnKTsKfQoKYXN5bmMgZnVuY3Rpb24gZW52aWFyU01TQWxlcnQocGF0aWVudF9oYXNoLCBob3NwaXRhbF9pZCwgdHJpYWdlKSB7CiAgdHJ5IHsKICAgIGNvbnN0IHJlcyA9IGF3YWl0IGZldGNoKFNVUEFCQVNFX0ZVTkNUSU9OU19VUkwsIHsKICAgICAgbWV0aG9kOiAnUE9TVCcsCiAgICAgIGhlYWRlcnM6IHsKICAgICAgICAnQ29udGVudC1UeXBlJzogJ2FwcGxpY2F0aW9uL2pzb24nLAogICAgICAgICdBdXRob3JpemF0aW9uJzogYEJlYXJlciAke1NVUEFCQVNFX0FOT05fS0VZfWAsCiAgICAgIH0sCiAgICAgIGJvZHk6IEpTT04uc3RyaW5naWZ5KHsgcGF0aWVudF9oYXNoLCBob3NwaXRhbF9pZCwgdHJpYWdlIH0pLAogICAgfSk7CiAgICBjb25zdCBkYXRhID0gYXdhaXQgcmVzLmpzb24oKTsKICAgIGNvbnNvbGUubG9nKGDwn5OkIFtTTVNdICR7cGF0aWVudF9oYXNoLnNsaWNlKDAsIDYpfSDigpIgJHtKU09OLnN0cmluZ2lmeShkYXRhKX1gKTsKICB9IGNhdGNoIChlcnIpIHsKICAgIGNvbnNvbGUuZXJyb3IoYOKdjCBbU01TLUVSUk9SXSAke2Vyci5tZXNzYWdlfWApOwogIH0KfQoKYXN5bmMgZnVuY3Rpb24gZW52aWFyRGF0b3MoYW1idWxhbmNpYSkgewogIGNvbnN0IHRyaWFnZSA9IHJhbmRvbVRyaWFnZSgpOwogIGNvbnN0IHBhdGllbnRfaGFzaCA9IGhhc2hBbWJ1bGFuY2lhKGFtYnVsYW5jaWEuaWQpOwoKICBhd2FpdCBzdXBhYmFzZQogICAgLmZyb20oJ3BhY2llbnRlc19kaW0nKQogICAgLnVwc2VydCh7IHBhdGllbnRfaGFzaCwgaG9zcGl0YWxfaWQ6IEhPU1BJVEFMX0lEIH0sIHsgb25Db25mbGljdDogJ3BhdGllbnRfaGFzaCcgfSk7CgogIGNvbnN0IHBheWxvYWQgPSB7CiAgICBhbWJ1bGFuY2lhX2lkOiBhbWJ1bGFuY2lhLmlkLAogICAgcGF0aWVudF9oYXNoLAogICAgaG9zcGl0YWxfaWQ6IEhPU1BJVEFMX0lELAogICAgZnJlY3VlbmNpYV9jYXJkaWFjYTogcmFuZG9tSW50KDU1LCAxNDApLAogICAgcHJlc2lvbl9hcnRlcmlhbDogYCR7cmFuZG9tSW50KDgwLCAxODApfS8ke3JhbmRvbUludCg1MCwgMTEwKX1gLAogICAgdHJpYWdlLAogICAgZWtnX3VybDogYGRhdGE6aW1hZ2UvcG5nO2Jhc2U2NCwke2Zha2VFS0d9YCwKICB9OwoKICBjb25zdCB7IGVycm9yIH0gPSBhd2FpdCBzdXBhYmFzZS5mcm9tKCd2aXRhbGVzJykuaW5zZXJ0KHBheWxvYWQpOwoKICBjb25zdCBlbW9qaSA9IHRyaWFnZSA9PT0gJ1JPSk8nID8gJ/CfkqQnIDogdHJpYWdlID09PSAnQU1BUklMTE8nID8gJ/CfkoEnIDogJ/CfkoInOwogIGlmIChlcnJvcikgewogICAgY29uc29sZS5lcnJvcihg4p2MIFske2FtYnVsYW5jaWEuaWR9XWAsIGVycm9yLm1lc3NhZ2UpOwogIH0gZWxzZSB7CiAgICBjb25zb2xlLmxvZyhgJHtlbW9qaX0gWyR7YW1idWxhbmNpYS5pZH1dIEZDOiR7cGF5bG9hZC5mcmVjdWVuY2lhX2NhcmRpYWNhfSBQQToke3BheWxvYWQucHJlc2lvbl9hcnRlcmlhbH0g4oeSICR7dHJpYWdlfWApOwoKICAgIC8vIOKslSBEaXNwYXJhciBTTVMgYXV0b23DoXRpY28gc2kgdHJpYWdlIGVzIFJPSk8KICAgIGlmICh0cmlhZ2UgPT09ICdST0pPJykgewogICAgICBhd2FpdCBlbnZpYXJTTVNBbGVydChwYXRpZW50X2hhc2gsIEhPU1BJVEFMX0lELCB0cmlhZ2UpOwogICAgfQogIH0KfQoKLy8gUm90YXIgYW1idWxhbmNpYXM6IDEgcG9yIHNlZ3VuZG8KbGV0IGluZGV4ID0gMDsKCmNvbnNvbGUubG9nKCfwn5qRIFZpdGFsU3luYyBTaW11bGF0b3Ig4oCUIDEgYW1idWxhbmNpYS9zZWcnKTsKY29uc29sZS5sb2coYPCfk6cgJHtwcm9jZXNzLmVudi5TVVBBQKFTRV9VUkx9XG5gKTsKCnNldEludGVydmFsKCgpID0+IHsKICBjb25zdCBhbWIgPSBBTUJVTEFOQ0lBU1tpbmRleCAlIEFNQlVMQU5DSUFTLMKJEWV0aCk7CiAgaW5kZXgrKzsKICBlbnZpYXJEYXRvcyhhbWIpOwp9LCAxMDAwKTsK
+require('dotenv').config();
+const { createClient } = require('@supabase/supabase-js');
+const crypto = require('crypto');
+
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_ANON_KEY
+);
+
+const AMBULANCIAS = [
+  { id: 'AMB-001', lat: 6.2442, lng: -75.5812 },
+  { id: 'AMB-002', lat: 6.2530, lng: -75.5740 },
+  { id: 'AMB-003', lat: 6.2380, lng: -75.5900 },
+  { id: 'AMB-004', lat: 6.2600, lng: -75.5650 },
+  { id: 'AMB-005', lat: 6.2310, lng: -75.5780 },
+  { id: 'AMB-006', lat: 6.2470, lng: -75.5830 },
+  { id: 'AMB-007', lat: 6.2550, lng: -75.5710 },
+  { id: 'AMB-008', lat: 6.2395, lng: -75.5860 },
+  { id: 'AMB-009', lat: 6.2615, lng: -75.5630 },
+  { id: 'AMB-010', lat: 6.2325, lng: -75.5760 },
+  { id: 'AMB-011', lat: 6.2480, lng: -75.5800 },
+  { id: 'AMB-012', lat: 6.2540, lng: -75.5720 },
+  { id: 'AMB-013', lat: 6.2370, lng: -75.5920 },
+  { id: 'AMB-014', lat: 6.2590, lng: -75.5660 },
+  { id: 'AMB-015', lat: 6.2300, lng: -75.5790 },
+];
+
+const HOSPITAL_ID = 'HSV-001'; // Corregido: coincide con cirujanos_guardia
+const fakeEKG = Buffer.from('FAKE_EKG_DATA_' + 'x'.repeat(100)).toString('base64');
+
+const SUPABASE_FUNCTIONS_URL = process.env.SUPABASE_FUNCTIONS_URL ||
+  `${process.env.SUPABASE_URL}/functions/v1/sms-alert`;
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
+
+function randomInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function randomTriage() {
+  const rand = Math.random();
+  if (rand < 0.15) return 'ROJO';
+  if (rand < 0.45) return 'AMARILLO';
+  return 'VERDE';
+}
+
+function hashAmbulancia(ambId) {
+  const salt = process.env.PATIENT_HASH_SALT || 'default_salt';
+  return crypto.createHmac('sha256', salt).update(ambId).digest('hex');
+}
+
+async function enviarSMSAlert(patient_hash, hospital_id, triage) {
+  try {
+    const res = await fetch(SUPABASE_FUNCTIONS_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify({ patient_hash, hospital_id, triage }),
+    });
+    const data = await res.json();
+    console.log(`[SMS] ${patient_hash.slice(0, 6)} => ${JSON.stringify(data)}`);
+  } catch (err) {
+    console.error(`[SMS-ERROR] ${err.message}`);
+  }
+}
+
+async function enviarDatos(ambulancia) {
+  const triage = randomTriage();
+  const patient_hash = hashAmbulancia(ambulancia.id);
+
+  await supabase
+    .from('pacientes_dim')
+    .upsert({ patient_hash, hospital_id: HOSPITAL_ID }, { onConflict: 'patient_hash' });
+
+  const payload = {
+    ambulancia_id: ambulancia.id,
+    patient_hash,
+    hospital_id: HOSPITAL_ID,
+    frecuencia_cardiaca: randomInt(55, 140),
+    presion_arterial: `${randomInt(80, 180)}/${randomInt(50, 110)}`,
+    triage,
+    ekg_url: `data:image/png;base64,${fakeEKG}`,
+  };
+
+  const { error } = await supabase.from('vitales').insert(payload);
+
+  const emoji = triage === 'ROJO' ? '🔴' : triage === 'AMARILLO' ? '🟡' : '🟢';
+  if (error) {
+    console.error(`[${ambulancia.id}] ERROR:`, error.message);
+  } else {
+    console.log(`${emoji} [${ambulancia.id}] FC:${payload.frecuencia_cardiaca} PA:${payload.presion_arterial} => ${triage}`);
+    if (triage === 'ROJO') {
+      await enviarSMSAlert(patient_hash, HOSPITAL_ID, triage);
+    }
+  }
+}
+
+let index = 0;
+
+console.log('VitalSync Simulator — 1 ambulancia/seg');
+console.log(`URL: ${process.env.SUPABASE_URL}\n`);
+
+setInterval(() => {
+  const amb = AMBULANCIAS[index % AMBULANCIAS.length];
+  index++;
+  enviarDatos(amb);
+}, 1000);
