@@ -6,14 +6,20 @@ type SyncMode = 'mock' | 'edge' | 'supabase';
 const edgeEndpoint = process.env.EXPO_PUBLIC_INGEST_VITALS_URL;
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
-const hospitalId = process.env.EXPO_PUBLIC_HOSPITAL_ID ?? 'HSP-SAN-VICENTE';
+const hospitalId = process.env.EXPO_PUBLIC_HOSPITAL_ID ?? 'HSV-001';
 const hashSalt = process.env.EXPO_PUBLIC_PATIENT_HASH_SALT ?? 'vitalsync-demo-salt';
+const smsAlertEndpoint = process.env.EXPO_PUBLIC_SMS_ALERT_URL;
+const enableHisQueue = process.env.EXPO_PUBLIC_ENABLE_HIS_QUEUE !== 'false';
 
 function getSyncMode(): SyncMode {
   const configuredMode = process.env.EXPO_PUBLIC_SYNC_MODE as SyncMode | undefined;
 
   if (configuredMode === 'edge' || configuredMode === 'supabase' || configuredMode === 'mock') {
     return configuredMode;
+  }
+
+  if (supabaseUrl && supabaseAnonKey) {
+    return 'supabase';
   }
 
   // Compatibility with the first Expo prototype.
@@ -29,6 +35,18 @@ async function createPatientHash(patientId: string) {
 
 function normalizeTriage(triage: VitalLocalRecord['triage']) {
   return triage.toUpperCase();
+}
+
+function getSmsAlertEndpoint() {
+  if (smsAlertEndpoint) {
+    return smsAlertEndpoint;
+  }
+
+  if (!supabaseUrl) {
+    return undefined;
+  }
+
+  return `${supabaseUrl.replace(/\/$/, '')}/functions/v1/sms-alert`;
 }
 
 function toIngestPayload(record: VitalLocalRecord) {
@@ -146,7 +164,6 @@ async function syncVitalViaSupabase(record: VitalLocalRecord): Promise<SyncResul
       };
     }
 
-    const createdAt = new Date().toISOString();
     const vitalResponse = await fetch(`${apiBase}/vitales`, {
       method: 'POST',
       headers: {
@@ -163,7 +180,6 @@ async function syncVitalViaSupabase(record: VitalLocalRecord): Promise<SyncResul
         ekg_url: record.ekgBase64
           ? `data:image/jpeg;base64,${record.ekgBase64}`
           : null,
-        created_at: createdAt,
       }),
     });
 
@@ -176,12 +192,18 @@ async function syncVitalViaSupabase(record: VitalLocalRecord): Promise<SyncResul
     }
 
     const body = (await vitalResponse.json().catch(() => [])) as Array<{
+      id?: string;
       created_at?: string;
     }>;
 
+    await Promise.all([
+      notifyRedTriage(patientHash, normalizeTriage(record.triage)),
+      enqueueHisSummary(apiBase, headers, record, patientHash, body[0]?.id),
+    ]);
+
     return {
       ok: true,
-      serverTimestamp: body[0]?.created_at ?? createdAt,
+      serverTimestamp: body[0]?.created_at ?? new Date().toISOString(),
     };
   } catch (error) {
     return {
@@ -189,4 +211,65 @@ async function syncVitalViaSupabase(record: VitalLocalRecord): Promise<SyncResul
       error: error instanceof Error ? error.message : 'Unknown Supabase sync error',
     };
   }
+}
+
+async function notifyRedTriage(patientHash: string, triage: string) {
+  const endpoint = getSmsAlertEndpoint();
+
+  if (triage !== 'ROJO' || !endpoint || !supabaseAnonKey) {
+    return;
+  }
+
+  await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${supabaseAnonKey}`,
+    },
+    body: JSON.stringify({
+      patient_hash: patientHash,
+      hospital_id: hospitalId,
+      triage,
+    }),
+  }).catch(() => undefined);
+}
+
+async function enqueueHisSummary(
+  apiBase: string,
+  headers: Record<string, string>,
+  record: VitalLocalRecord,
+  patientHash: string,
+  vitalRecordId?: string,
+) {
+  if (!enableHisQueue) {
+    return;
+  }
+
+  await fetch(`${apiBase}/his_queue`, {
+    method: 'POST',
+    headers: {
+      ...headers,
+      Prefer: 'return=minimal',
+    },
+    body: JSON.stringify({
+      patient_hash: patientHash,
+      hospital_id: hospitalId,
+      sent: false,
+      attempts: 0,
+      status: 'pending',
+      payload: {
+        source: 'mobile',
+        vital_record_id: vitalRecordId,
+        client_record_id: record.id,
+        ambulance_id: record.ambulanceId,
+        frecuencia_cardiaca: record.heartRate,
+        presion_arterial: record.bloodPressure,
+        triage: normalizeTriage(record.triage),
+        ekg_bytes: record.ekgBytes,
+        notes: record.notes,
+        client_created_at: record.createdAt,
+        client_updated_at: record.updatedAt,
+      },
+    }),
+  }).catch(() => undefined);
 }
