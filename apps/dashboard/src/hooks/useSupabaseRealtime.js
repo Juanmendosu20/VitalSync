@@ -81,6 +81,16 @@ export function useSupabaseRealtime() {
             const avg = Math.round(win.reduce((s, v) => s + v, 0) / win.length)
             setAvgLatency(avg)
             const record = mapVital(payload.new, rtt)
+            window.dispatchEvent(
+              new CustomEvent('vitalsync-vital-received', {
+                detail: {
+                  id: payload.new.id,
+                  ambulance: record.ambulance,
+                  patientHash: record.patientHash,
+                  triage: record.triage,
+                },
+              })
+            )
             setPatients((prev) => mergeByAmbulance(prev, record))
           })
           setEventsReceived((prev) => prev + 1)

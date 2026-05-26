@@ -1,92 +1,151 @@
-/**
- * useMockCircuitBreaker — lee el estado REAL del HIS Mock API
- * y deriva el estado del Circuit Breaker a partir de él.
- *
- * CLOSED   → HIS UP  (operativo, 0 fallos recientes)
- * OPEN     → HIS DOWN (caido, circuito abierto, peticiones en cola)
- * HALF_OPEN → HIS vuelve UP después de haber estado DOWN (ventana de prueba)
- */
 import { useEffect, useRef, useState } from 'react'
 
-const HIS_URL = '/api/his-mock'
-const POLL_MS = 4000        // revisa cada 4 seg
-const HALF_OPEN_WINDOW = 12000 // 12 seg en HALF_OPEN antes de cerrar
+const HALF_OPEN_DELAY_MS = 5000
+const DRAIN_INTERVAL_MS = 800
+const MAX_REQ_PER_SECOND = 2
+const BURST_SIZE = 5
 
 export function useMockCircuitBreaker() {
   const [circuitState, setCircuitState] = useState({
     state: 'CLOSED',
     queueSize: 0,
     lastFailure: null,
+    processedFromQueue: 0,
+    processedEvents: [],
   })
 
-  const prevHisDown = useRef(false)
+  const queueRef = useRef([])
+  const timestampsRef = useRef([])
   const halfOpenTimer = useRef(null)
-  const queueRef = useRef(0)
+  const drainTimer = useRef(null)
+  const circuitRef = useRef('CLOSED')
+
+  const setCircuit = (state) => {
+    circuitRef.current = state
+    setCircuitState((prev) => ({
+      ...prev,
+      state,
+      queueSize: queueRef.current.length,
+    }))
+  }
+
+  const openCircuit = () => {
+    if (circuitRef.current === 'OPEN') return
+
+    clearTimeout(halfOpenTimer.current)
+    clearInterval(drainTimer.current)
+
+    circuitRef.current = 'OPEN'
+
+    setCircuitState((prev) => ({
+      ...prev,
+      state: 'OPEN',
+      queueSize: queueRef.current.length,
+      lastFailure: new Date().toLocaleTimeString('es-CO'),
+    }))
+
+    halfOpenTimer.current = setTimeout(() => {
+      setCircuit('HALF_OPEN')
+
+      setTimeout(() => {
+        startDrainQueue()
+      }, 2500)
+    }, HALF_OPEN_DELAY_MS)
+  }
+
+  const startDrainQueue = () => {
+    clearInterval(drainTimer.current)
+    setCircuit('CLOSED')
+
+    drainTimer.current = setInterval(() => {
+      if (queueRef.current.length === 0) {
+        clearInterval(drainTimer.current)
+        setCircuit('CLOSED')
+        return
+      }
+
+      const item = queueRef.current.shift()
+
+      setCircuitState((prev) => ({
+        ...prev,
+        state: 'CLOSED',
+        queueSize: queueRef.current.length,
+        processedFromQueue: prev.processedFromQueue + 1,
+        processedEvents: [
+          {
+            id: item.id,
+            ambulance: item.ambulance,
+            patientHash: item.patientHash,
+            triage: item.triage,
+            sentAt: new Date().toLocaleTimeString('es-CO'),
+          },
+          ...prev.processedEvents,
+        ].slice(0, 5),
+      }))
+    }, DRAIN_INTERVAL_MS)
+  }
+
+  const enqueueRequest = (payload) => {
+    queueRef.current.push({
+      id: payload.id ?? `REQ-${Date.now()}-${Math.random()}`,
+      ambulance: payload.ambulance ?? 'AMB-UNKNOWN',
+      patientHash: payload.patientHash ?? 'patient_hash_demo',
+      triage: payload.triage ?? 'VERDE',
+      createdAt: new Date().toLocaleTimeString('es-CO'),
+    })
+
+    openCircuit()
+  }
+
+  const handleIncomingVital = (payload) => {
+    const now = Date.now()
+
+    timestampsRef.current = timestampsRef.current.filter(
+      (timestamp) => now - timestamp < 1000
+    )
+
+    timestampsRef.current.push(now)
+
+    if (timestampsRef.current.length > MAX_REQ_PER_SECOND) {
+      enqueueRequest(payload)
+    }
+  }
+
+  const simulateHisOverload = () => {
+    const triageValues = ['ROJO', 'AMARILLO', 'VERDE']
+
+    Array.from({ length: BURST_SIZE }).forEach((_, index) => {
+      enqueueRequest({
+        id: `REQ-${Date.now()}-${index}`,
+        ambulance: `AMB-DEMO-${index + 1}`,
+        patientHash: `demo_hash_${Math.random().toString(16).slice(2, 10)}`,
+        triage: triageValues[index % triageValues.length],
+      })
+    })
+  }
 
   useEffect(() => {
-    const poll = async () => {
-      try {
-        const res = await fetch(HIS_URL)
-        const data = await res.json()
-        const isDown = data.his_status === 'DOWN'
-
-        if (isDown) {
-          // HIS caido → OPEN, acumular cola simulada
-          queueRef.current = Math.min(queueRef.current + 2, 50)
-          clearTimeout(halfOpenTimer.current)
-          prevHisDown.current = true
-          setCircuitState({
-            state: 'OPEN',
-            queueSize: queueRef.current,
-            lastFailure: new Date().toLocaleTimeString('es-CO'),
-          })
-        } else if (prevHisDown.current) {
-          // HIS acaba de recuperarse → HALF_OPEN por 12 seg
-          prevHisDown.current = false
-          setCircuitState(prev => ({
-            state: 'HALF_OPEN',
-            queueSize: queueRef.current,
-            lastFailure: prev.lastFailure,
-          }))
-          halfOpenTimer.current = setTimeout(() => {
-            // Drain la cola y cerrar el circuito
-            queueRef.current = 0
-            setCircuitState(prev => ({
-              state: 'CLOSED',
-              queueSize: 0,
-              lastFailure: prev.lastFailure,
-            }))
-          }, HALF_OPEN_WINDOW)
-        } else {
-          // HIS UP sin haber estado DOWN → CLOSED normal
-          queueRef.current = 0
-          setCircuitState(prev =>
-            prev.state === 'CLOSED' && prev.queueSize === 0
-              ? prev  // sin cambio, evitar re-render
-              : { state: 'CLOSED', queueSize: 0, lastFailure: prev.lastFailure }
-          )
-        }
-      } catch {
-        // Error de red → tratar como DOWN
-        queueRef.current = Math.min(queueRef.current + 1, 50)
-        setCircuitState(prev => ({
-          state: 'OPEN',
-          queueSize: queueRef.current,
-          lastFailure: new Date().toLocaleTimeString('es-CO'),
-        }))
-      }
+    const overloadHandler = () => {
+      simulateHisOverload()
     }
 
-    poll() // primer check inmediato
-    const interval = setInterval(poll, POLL_MS)
+    const vitalHandler = (event) => {
+      handleIncomingVital(event.detail)
+    }
+
+    window.addEventListener('simulate-his-overload', overloadHandler)
+    window.addEventListener('vitalsync-vital-received', vitalHandler)
+
     return () => {
-      clearInterval(interval)
+      window.removeEventListener('simulate-his-overload', overloadHandler)
+      window.removeEventListener('vitalsync-vital-received', vitalHandler)
       clearTimeout(halfOpenTimer.current)
+      clearInterval(drainTimer.current)
     }
   }, [])
 
   return {
     circuitState,
-    circuitSource: 'HIS-API',
+    circuitSource: 'HIS-QUEUE',
   }
 }
